@@ -1,0 +1,23 @@
+# Build output
+build/
+
+# VS Code
+.vscode/
+
+# Visual Studio / MSVC
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.idb
+*.ipch
+
+# CMake (if you add it later)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# OS files
+.DS_Store
+Thumbs.db
