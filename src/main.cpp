@@ -1,19 +1,20 @@
 #include <iostream>
 #include <regex>
-#include "OrderBook.h"
+#include <stdexcept>
+#include "../include/OrderBook.h"
 
 std::string WELCOME_MSG = 
     "Welcome to the Dublin Stock Exchange!\n"
     "Submitting a sell order: Sell <orderer's name> <price> <quantity>\n"
     "Submitting a buy order: Buy <orderer's name> <price> <quantity>\n"
-    "Exiting program: Exit";
+    "Exiting program: Exit\n\n";
 
 Order parseInput(const std::string& input);
 
 int main() {
     std::cout << WELCOME_MSG;
 
-    OrderBook orderBook;
+    OrderBook orderBook(std::cout);
 
     while (true) {
         std::cout << "Enter an order:";

@@ -1,4 +1,7 @@
+#pragma once
+
 #include <chrono>
+#include <string>
 
 enum class OrderType {
     Buy,
@@ -14,16 +17,14 @@ class Order {
         long long arrivalTS;
 
     public:
-        Order(OrderType type, int price, int quantity, std::string ordererId) {
-            type = type;
-            price = price;
-            quantity = quantity;
-            ordererId = ordererId;
-
-            long long arrivalTS = std::chrono::duration_cast<std::chrono::milliseconds>(
+        Order(OrderType type, int price, int quantity, std::string ordererId)
+            : type(type),
+              price(price),
+              quantity(quantity),
+              ordererId(ordererId),
+              arrivalTS(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()
-            ).count();
-        }
+              ).count()) {}
 
         OrderType getType() const {
             return type;

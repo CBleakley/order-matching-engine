@@ -1,5 +1,10 @@
+#pragma once
+
 #include <map>
+#include <ostream>
 #include <queue>
+#include <cstddef>
+#include <string>
 #include <vector>
 #include <algorithm>
 #include "Order.h"
@@ -10,25 +15,7 @@ class OrderBook {
         std::map<int, std::queue<Order>> buyOrders;
         std::map<int, std::queue<Order>> sellOrders;
         std::vector<Trade> tradeHistory;
-
-        void executeTrade(Order matchedOrder, Order aggressiveOrder) {
-            int tradePrice = matchedOrder.getPrice();
-            int tradeQuantity = std::min(
-                aggressiveOrder.getQuantity(),
-                matchedOrder.getQuantity()
-            );
-            Trade trade(
-                tradePrice, 
-                tradeQuantity, 
-                aggressiveOrder.getOrdererId(), 
-                matchedOrder.getOrdererId()
-            );
-
-            aggressiveOrder.reduceQuantity(tradeQuantity);
-            matchedOrder.reduceQuantity(tradeQuantity);
-
-            addToTradeHistory(trade);
-        };
+        std::ostream& output;
 
         void addToBook(const Order& order) {
             if (order.getType() == OrderType::Buy) {
@@ -43,7 +30,68 @@ class OrderBook {
             tradeHistory.push_back(trade);
         }
 
+        void outputBook(const std::string& title, const std::map<int, std::queue<Order>>& orders, bool descending) const {
+            output << title << ":\n";
+
+            if (orders.empty()) {
+                output << "  (empty)\n";
+                return;
+            }
+
+            if (descending) {
+                for (auto priceLevel = orders.rbegin(); priceLevel != orders.rend(); ++priceLevel) {
+                    outputPriceLevel(priceLevel->first, priceLevel->second);
+                }
+            } else {
+                for (const auto& priceLevel : orders) {
+                    outputPriceLevel(priceLevel.first, priceLevel.second);
+                }
+            }
+        }
+
+        void outputPriceLevel(int price, std::queue<Order> orders) const {
+            output << "  Price " << price << ":\n";
+
+            while (!orders.empty()) {
+                const Order& order = orders.front();
+                output << "    "
+                       << order.getOrdererId()
+                       << " quantity=" << order.getQuantity()
+                       << '\n';
+                orders.pop();
+            }
+        }
+
+        void outputLastTrades() const {
+            output << "Last 5 trades:\n";
+
+            if (tradeHistory.empty()) {
+                output << "  (none)\n";
+                return;
+            }
+
+            std::size_t start = tradeHistory.size() > 5 ? tradeHistory.size() - 5 : 0;
+            for (std::size_t i = start; i < tradeHistory.size(); ++i) {
+                const Trade& trade = tradeHistory[i];
+                output << "  Price " << trade.getPrice()
+                       << ", quantity=" << trade.getQuantity()
+                       << ", aggressive=" << trade.getAggressiveOrderer()
+                       << ", matched=" << trade.getMatchedOrderer()
+                       << '\n';
+            }
+        }
+
+        void outputState() const {
+            output << "\nOrder book state\n";
+            outputBook("Buy book", buyOrders, true);
+            outputBook("Sell book", sellOrders, false);
+            outputLastTrades();
+            output << '\n';
+        }
+
     public:
+        OrderBook(std::ostream& output) : output(output) {}
+
         void processOrder(Order aggressiveOrder) {
             while (aggressiveOrder.getQuantity() > 0) {
                 std::map<int, std::queue<Order>>& matchingBook =
@@ -72,15 +120,36 @@ class OrderBook {
                     break;
                 }
 
-                executeTrade(matchedOrder, aggressiveOrder);
+                int matchedOrderPrice = matchedOrder.getPrice();
+                int tradeQuantity = std::min(
+                    aggressiveOrder.getQuantity(),
+                    matchedOrder.getQuantity()
+                );
+                Trade trade(
+                    matchedOrderPrice,
+                    tradeQuantity,
+                    aggressiveOrder.getOrdererId(),
+                    matchedOrder.getOrdererId()
+                );
+
+                aggressiveOrder.reduceQuantity(tradeQuantity);
+                matchedOrder.reduceQuantity(tradeQuantity);
 
                 if (matchedOrder.getQuantity() == 0) {
                     queue.pop();
 
                     if (queue.empty()) {
-                        matchingBook.erase(matchedOrder.getPrice());
+                        matchingBook.erase(matchedOrderPrice);
                     }
                 }
+
+                addToTradeHistory(trade);
+                output << "\nTrade executed: price=" << trade.getPrice()
+                       << ", quantity=" << trade.getQuantity()
+                       << ", aggressive=" << trade.getAggressiveOrderer()
+                       << ", matched=" << trade.getMatchedOrderer()
+                       << '\n';
+                outputState();
             }
         }
 };
