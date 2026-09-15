@@ -10,6 +10,8 @@
 #include "Order.h"
 #include "Trade.h"
 
+std::size_t N_TRADES_TO_PRINT = 5;
+
 class OrderBook {
     private:
         std::map<int, std::queue<Order>> buyOrders;
@@ -62,22 +64,18 @@ class OrderBook {
             }
         }
 
-        void outputLastTrades() const {
-            output << "Last 5 trades:\n";
+        void outputLastNTrades(std::size_t& n) const {
+            output << "Last" << n << "trades:\n";
 
             if (tradeHistory.empty()) {
                 output << "  (none)\n";
                 return;
             }
 
-            std::size_t start = tradeHistory.size() > 5 ? tradeHistory.size() - 5 : 0;
+            std::size_t start = tradeHistory.size() > n ? tradeHistory.size() - n : 0;
             for (std::size_t i = start; i < tradeHistory.size(); ++i) {
                 const Trade& trade = tradeHistory[i];
-                output << "  Price " << trade.getPrice()
-                       << ", quantity=" << trade.getQuantity()
-                       << ", aggressive=" << trade.getAggressiveOrderer()
-                       << ", matched=" << trade.getMatchedOrderer()
-                       << '\n';
+                output << trade.toString();
             }
         }
 
@@ -85,7 +83,7 @@ class OrderBook {
             output << "\nOrder book state\n";
             outputBook("Buy book", buyOrders, true);
             outputBook("Sell book", sellOrders, false);
-            outputLastTrades();
+            outputLastNTrades(N_TRADES_TO_PRINT);
             output << '\n';
         }
 
@@ -144,11 +142,7 @@ class OrderBook {
                 }
 
                 addToTradeHistory(trade);
-                output << "\nTrade executed: price=" << trade.getPrice()
-                       << ", quantity=" << trade.getQuantity()
-                       << ", aggressive=" << trade.getAggressiveOrderer()
-                       << ", matched=" << trade.getMatchedOrderer()
-                       << '\n';
+                output << trade.toString();
                 outputState();
             }
         }

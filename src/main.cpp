@@ -4,7 +4,7 @@
 #include "../include/OrderBook.h"
 
 std::string WELCOME_MSG = 
-    "Welcome to the Dublin Stock Exchange!\n"
+    "Welcome to Conor's Stock Exchange!\n"
     "Submitting a sell order: Sell <orderer's name> <price> <quantity>\n"
     "Submitting a buy order: Buy <orderer's name> <price> <quantity>\n"
     "Exiting program: Exit\n\n";

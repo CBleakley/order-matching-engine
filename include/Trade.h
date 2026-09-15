@@ -40,4 +40,15 @@ class Trade {
         long long getExecutionTS() const {
             return executionTS;
         }
+
+        std::string toString() const {
+            return "\nTrade executed: price="
+                + std::to_string(getPrice())
+                + ", quantity="
+                + std::to_string(getQuantity())
+                + ", aggressive="
+                + getAggressiveOrderer()
+                + ", matched="
+                + getMatchedOrderer() + '\n';
+        }
 };
