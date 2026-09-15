@@ -3,6 +3,8 @@
 #include "../include/ioHelpers.h"
 #include "../include/OrderBook.h"
 
+std::ostream& OUTPUT_STREAM = std::cout;
+
 std::string WELCOME_MSG = 
     "Welcome to Conor's Stock Exchange!\n"
     "Submitting a sell order: Sell <orderer's name> <price> <quantity>\n"
@@ -12,7 +14,7 @@ std::string WELCOME_MSG =
 int main() {
     std::cout << WELCOME_MSG;
 
-    OrderBook orderBook(std::cout);
+    OrderBook orderBook(OUTPUT_STREAM);
 
     while (true) {
         std::cout << "Enter an order:";

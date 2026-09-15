@@ -57,7 +57,7 @@ class OrderBook {
             while (!orders.empty()) {
                 const Order& order = orders.front();
                 output << "    "
-                       << order.getOrdererId()
+                       << order.getTraderName()
                        << " quantity=" << order.getQuantity()
                        << '\n';
                 orders.pop();
@@ -107,13 +107,15 @@ class OrderBook {
                         ? matchingBook.begin() ->second
                         : matchingBook.rbegin()->second;
 
+                const bool aggressiveOrderIsBuy = aggressiveOrder.getType() == OrderType::Buy;
+
                 Order& matchedOrder = queue.front();
-                if (aggressiveOrder.getType() == OrderType::Buy && matchedOrder.getPrice() > aggressiveOrder.getPrice()) {
+                if (aggressiveOrderIsBuy && matchedOrder.getPrice() > aggressiveOrder.getPrice()) {
                     addToBook(aggressiveOrder);
                     break;
                 }
 
-                if (aggressiveOrder.getType() == OrderType::Sell && matchedOrder.getPrice() < aggressiveOrder.getPrice()) {
+                if (!aggressiveOrderIsBuy && matchedOrder.getPrice() < aggressiveOrder.getPrice()) {
                     addToBook(aggressiveOrder);
                     break;
                 }
@@ -123,11 +125,17 @@ class OrderBook {
                     aggressiveOrder.getQuantity(),
                     matchedOrder.getQuantity()
                 );
+                const std::string buyerName = aggressiveOrderIsBuy
+                    ? aggressiveOrder.getTraderName()
+                    : matchedOrder.getTraderName();
+                const std::string sellerName = aggressiveOrderIsBuy
+                    ? matchedOrder.getTraderName()
+                    : aggressiveOrder.getTraderName();
                 Trade trade(
                     matchedOrderPrice,
                     tradeQuantity,
-                    aggressiveOrder.getOrdererId(),
-                    matchedOrder.getOrdererId()
+                    buyerName,
+                    sellerName
                 );
 
                 aggressiveOrder.reduceQuantity(tradeQuantity);
@@ -143,7 +151,7 @@ class OrderBook {
 
                 addToTradeHistory(trade);
                 output << trade.toString();
-                outputState();
             }
+            outputState();
         }
 };

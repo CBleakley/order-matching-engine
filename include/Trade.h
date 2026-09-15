@@ -7,16 +7,16 @@ class Trade {
     private:
         int price;
         int quantity;
-        std::string aggressiveOrderer;
-        std::string matchedOrderer;
+        std::string buyTrader;
+        std::string sellTrader;
         long long executionTS;
 
     public:
-        Trade(int price, int quantity, std::string aggressiveOrderer, std::string matchedOrderer)
+        Trade(int price, int quantity, std::string buyTrader, std::string sellTrader)
             : price(price),
               quantity(quantity),
-              aggressiveOrderer(aggressiveOrderer),
-              matchedOrderer(matchedOrderer),
+              buyTrader(buyTrader),
+              sellTrader(sellTrader),
               executionTS(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()
               ).count()) {}
@@ -29,12 +29,12 @@ class Trade {
             return quantity;
         }
 
-        std::string getAggressiveOrderer() const {
-            return aggressiveOrderer;
+        std::string getBuyOrderer() const {
+            return buyTrader;
         }
 
-        std::string getMatchedOrderer() const {
-            return matchedOrderer;
+        std::string getSellOrderer() const {
+            return sellTrader;
         }
 
         long long getExecutionTS() const {
@@ -46,9 +46,9 @@ class Trade {
                 + std::to_string(getPrice())
                 + ", quantity="
                 + std::to_string(getQuantity())
-                + ", aggressive="
-                + getAggressiveOrderer()
-                + ", matched="
-                + getMatchedOrderer() + '\n';
+                + ", buyer="
+                + getBuyOrderer()
+                + ", seller="
+                + getSellOrderer() + '\n';
         }
 };

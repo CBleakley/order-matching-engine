@@ -13,15 +13,15 @@ class Order {
         OrderType type;
         int price;
         int quantity; // TODO: track initial quantity and outstanding seperately
-        std::string ordererId; // TODO: Replace with a trader
+        std::string traderName; // TODO: Replace with a trader
         long long arrivalTS;
 
     public:
-        Order(OrderType type, int price, int quantity, std::string ordererId)
+        Order(OrderType type, int price, int quantity, std::string traderName)
             : type(type),
               price(price),
               quantity(quantity),
-              ordererId(ordererId),
+              traderName(traderName),
               arrivalTS(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()
               ).count()) {}
@@ -38,8 +38,8 @@ class Order {
             return price;
         }
 
-        std::string getOrdererId() const {
-            return ordererId;
+        std::string getTraderName() const {
+            return traderName;
         }
 
         void reduceQuantity(int reduction) {
