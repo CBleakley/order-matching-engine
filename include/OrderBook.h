@@ -22,8 +22,7 @@ class OrderBook {
         void addToBook(const Order& order) {
             if (order.getType() == OrderType::Buy) {
                 buyOrders[order.getPrice()].push(order);
-            }
-            else {
+            } else {
                 sellOrders[order.getPrice()].push(order);
             }
         }
@@ -65,7 +64,7 @@ class OrderBook {
         }
 
         void outputLastNTrades(std::size_t& n) const {
-            output << "Last" << n << "trades:\n";
+            output << "Last " << n << " trades:\n";
 
             if (tradeHistory.empty()) {
                 output << "  (none)\n";
@@ -92,8 +91,10 @@ class OrderBook {
 
         void processOrder(Order aggressiveOrder) {
             while (aggressiveOrder.getQuantity() > 0) {
+                const bool aggressiveOrderIsBuy = aggressiveOrder.getType() == OrderType::Buy;
+                
                 std::map<int, std::queue<Order>>& matchingBook =
-                    aggressiveOrder.getType() == OrderType::Buy
+                    aggressiveOrderIsBuy
                         ? sellOrders
                         : buyOrders;
 
@@ -103,13 +104,11 @@ class OrderBook {
                 }
 
                 std::queue<Order>& queue = 
-                    aggressiveOrder.getType() == OrderType::Buy
+                    aggressiveOrderIsBuy
                         ? matchingBook.begin() ->second
                         : matchingBook.rbegin()->second;
 
-                const bool aggressiveOrderIsBuy = aggressiveOrder.getType() == OrderType::Buy;
-
-                Order& matchedOrder = queue.front();
+                Order& matchedOrder = queue.front(); // Guaranteed as empty queues are removed
                 if (aggressiveOrderIsBuy && matchedOrder.getPrice() > aggressiveOrder.getPrice()) {
                     addToBook(aggressiveOrder);
                     break;

@@ -49,6 +49,6 @@ class Trade {
                 + ", buyer="
                 + getBuyOrderer()
                 + ", seller="
-                + getSellOrderer() + '\n';
+                + getSellOrderer();
         }
 };
