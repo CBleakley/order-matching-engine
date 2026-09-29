@@ -3,20 +3,24 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
-#include "Order.h"
+#include "Types.h"
 
-inline Order parseInput(const std::string& input) {
+struct ParsedOrder {
+    engine::Side     side;
+    std::string      traderName;
+    engine::Price    price;
+    engine::Quantity quantity;
+};
+
+inline ParsedOrder parseInput(const std::string& input) {
     std::regex orderPattern(R"(^(Buy|buy|Sell|sell) ([^\s]+) ([1-9][0-9]*) ([1-9][0-9]*)$)");
 
     std::smatch match;
     if (std::regex_match(input, match, orderPattern)) {
-        OrderType type = (match[1] == "Buy" || match[1] == "buy")
-            ? OrderType::Buy
-            : OrderType::Sell;
-        std::string ordererId = match[2];
-        int price = std::stoi(match[3]);
-        int quantity = std::stoi(match[4]);
-        return Order(type, price, quantity, ordererId);
+        engine::Side side = (match[1] == "Buy" || match[1] == "buy")
+            ? engine::Side::Buy
+            : engine::Side::Sell;
+        return ParsedOrder{side, match[2], std::stoll(match[3]), std::stoll(match[4])};
     }
 
     throw std::runtime_error("Invalid User Input");

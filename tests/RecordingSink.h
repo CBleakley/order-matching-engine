@@ -5,8 +5,8 @@
 #include <variant>
 #include <vector>
 
+#include "EnumPrinters.h"
 #include "Events.h"
-#include "TypeStrings.h"
 
 // Test helper: an EventSink that records every event it receives, in order,
 // so tests can compare the engine's full output against an expected sequence.
@@ -38,12 +38,6 @@ private:
 
 // Readable printers, used by GoogleTest in failure messages. They live in
 // namespace engine so they are found by ADL.
-
-inline std::ostream& operator<<(std::ostream& os, Side side) { return os << toString(side); }
-
-inline std::ostream& operator<<(std::ostream& os, RejectReason reason) {
-    return os << toString(reason);
-}
 
 inline std::ostream& operator<<(std::ostream& os, const OrderAccepted& e) {
     return os << "Accepted{id=" << e.id << ", seq=" << e.seq << '}';

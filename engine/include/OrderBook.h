@@ -1,156 +1,115 @@
 #pragma once
 
-#include <map>
-#include <ostream>
-#include <queue>
-#include <cstddef>
-#include <string>
-#include <vector>
 #include <algorithm>
-#include "Order.h"
-#include "Trade.h"
+#include <deque>
+#include <functional>
+#include <map>
+#include <unordered_set>
 
-inline constexpr std::size_t N_TRADES_TO_PRINT = 5;
+#include "Events.h"
+#include "Types.h"
+
+// Single-instrument limit order book with price-time priority. The book does
+// no I/O: everything it does is reported to an EventSink.
+
+namespace engine {
 
 class OrderBook {
-    private:
-        std::map<int, std::queue<Order>> buyOrders;
-        std::map<int, std::queue<Order>> sellOrders;
-        std::vector<Trade> tradeHistory;
-        std::ostream& output;
+public:
+    explicit OrderBook(EventSink& sink) : sink_(sink) {}
 
-        void addToBook(const Order& order) {
-            if (order.getType() == OrderType::Buy) {
-                buyOrders[order.getPrice()].push(order);
-            } else {
-                sellOrders[order.getPrice()].push(order);
-            }
+    OrderBook(const OrderBook&)            = delete;
+    OrderBook& operator=(const OrderBook&) = delete;
+
+    // Validates the order, matches it against the opposite side, and rests any
+    // remainder. Emits OrderRejected on failure; otherwise OrderAccepted, then
+    // a TradeEvent per fill, then OrderRested if quantity remains.
+    void submit(OrderId id, TraderId trader, Side side, Price price, Quantity qty) {
+        if (price <= 0) {
+            sink_.onRejected({id, RejectReason::InvalidPrice});
+            return;
+        }
+        if (qty <= 0) {
+            sink_.onRejected({id, RejectReason::InvalidQuantity});
+            return;
+        }
+        if (restingIds_.contains(id)) {
+            sink_.onRejected({id, RejectReason::DuplicateOrderId});
+            return;
         }
 
-        void addToTradeHistory(const Trade& trade) {
-            tradeHistory.push_back(trade);
+        Order order{id, trader, side, price, qty, nextSeq_++};
+        sink_.onAccepted({order.id, order.seq});
+
+        if (side == Side::Buy) {
+            match(order, asks_);
+            if (order.remaining > 0) rest(order, bids_);
+        } else {
+            match(order, bids_);
+            if (order.remaining > 0) rest(order, asks_);
         }
+    }
 
-        void outputBook(const std::string& title, const std::map<int, std::queue<Order>>& orders, bool descending) const {
-            output << title << ":\n";
+private:
+    using Level = std::deque<Order>;
+    // Both sides are ordered so the best price is at begin().
+    using BuySide  = std::map<Price, Level, std::greater<Price>>;
+    using SellSide = std::map<Price, Level, std::less<Price>>;
 
-            if (orders.empty()) {
-                output << "  (empty)\n";
-                return;
-            }
+    static bool crosses(const Order& taker, Price restingPrice) noexcept {
+        return taker.side == Side::Buy ? taker.price >= restingPrice : taker.price <= restingPrice;
+    }
 
-            if (descending) {
-                for (auto priceLevel = orders.rbegin(); priceLevel != orders.rend(); ++priceLevel) {
-                    outputPriceLevel(priceLevel->first, priceLevel->second);
+    // Fills the taker against the opposite side, best price first and FIFO
+    // within a level, until it is filled or the prices no longer cross.
+    template <typename OppositeSide>
+    void match(Order& taker, OppositeSide& opposite) {
+        while (taker.remaining > 0 && !opposite.empty()) {
+            auto levelIt = opposite.begin();
+            if (!crosses(taker, levelIt->first)) break;
+
+            Level& level = levelIt->second;
+            while (taker.remaining > 0 && !level.empty()) {
+                Order& maker       = level.front();
+                const Quantity qty = std::min(taker.remaining, maker.remaining);
+                taker.remaining -= qty;
+                maker.remaining -= qty;
+
+                const bool takerIsBuy = taker.side == Side::Buy;
+                sink_.onTrade({
+                    .makerId       = maker.id,
+                    .takerId       = taker.id,
+                    .buyer         = takerIsBuy ? taker.trader : maker.trader,
+                    .seller        = takerIsBuy ? maker.trader : taker.trader,
+                    .price         = maker.price,
+                    .qty           = qty,
+                    .aggressorSide = taker.side,
+                    .seq           = nextSeq_++,
+                });
+
+                if (maker.remaining == 0) {
+                    restingIds_.erase(maker.id);
+                    level.pop_front();
                 }
-            } else {
-                for (const auto& priceLevel : orders) {
-                    outputPriceLevel(priceLevel.first, priceLevel.second);
-                }
-            }
-        }
-
-        void outputPriceLevel(int price, std::queue<Order> orders) const {
-            output << "  Price " << price << ":\n";
-
-            while (!orders.empty()) {
-                const Order& order = orders.front();
-                output << "    "
-                       << order.getTraderName()
-                       << " quantity=" << order.getQuantity()
-                       << '\n';
-                orders.pop();
-            }
-        }
-
-        void outputLastNTrades(std::size_t n) const {
-            output << "Last " << n << " trades:\n";
-
-            if (tradeHistory.empty()) {
-                output << "  (none)\n";
-                return;
             }
 
-            std::size_t start = tradeHistory.size() > n ? tradeHistory.size() - n : 0;
-            for (std::size_t i = start; i < tradeHistory.size(); ++i) {
-                const Trade& trade = tradeHistory[i];
-                output << trade.toString();
-            }
+            if (level.empty()) opposite.erase(levelIt);
         }
+    }
 
-        void outputState() const {
-            output << "\nOrder book state\n";
-            outputBook("Buy book", buyOrders, true);
-            outputBook("Sell book", sellOrders, false);
-            outputLastNTrades(N_TRADES_TO_PRINT);
-            output << '\n';
-        }
+    template <typename SameSide>
+    void rest(const Order& order, SameSide& side) {
+        side[order.price].push_back(order);
+        restingIds_.insert(order.id);
+        sink_.onRested({order.id, order.side, order.price, order.remaining});
+    }
 
-    public:
-        OrderBook(std::ostream& output) : output(output) {}
-
-        void processOrder(Order aggressiveOrder) {
-            while (aggressiveOrder.getQuantity() > 0) {
-                const bool aggressiveOrderIsBuy = aggressiveOrder.getType() == OrderType::Buy;
-                
-                std::map<int, std::queue<Order>>& matchingBook =
-                    aggressiveOrderIsBuy
-                        ? sellOrders
-                        : buyOrders;
-
-                if (matchingBook.empty()) {
-                    addToBook(aggressiveOrder);
-                    break;
-                }
-
-                std::queue<Order>& queue = 
-                    aggressiveOrderIsBuy
-                        ? matchingBook.begin() ->second
-                        : matchingBook.rbegin()->second;
-
-                Order& matchedOrder = queue.front(); // Guaranteed as empty queues are removed
-                if (aggressiveOrderIsBuy && matchedOrder.getPrice() > aggressiveOrder.getPrice()) {
-                    addToBook(aggressiveOrder);
-                    break;
-                }
-
-                if (!aggressiveOrderIsBuy && matchedOrder.getPrice() < aggressiveOrder.getPrice()) {
-                    addToBook(aggressiveOrder);
-                    break;
-                }
-
-                int matchedOrderPrice = matchedOrder.getPrice();
-                int tradeQuantity = std::min(
-                    aggressiveOrder.getQuantity(),
-                    matchedOrder.getQuantity()
-                );
-                const std::string buyerName = aggressiveOrderIsBuy
-                    ? aggressiveOrder.getTraderName()
-                    : matchedOrder.getTraderName();
-                const std::string sellerName = aggressiveOrderIsBuy
-                    ? matchedOrder.getTraderName()
-                    : aggressiveOrder.getTraderName();
-                Trade trade(
-                    matchedOrderPrice,
-                    tradeQuantity,
-                    buyerName,
-                    sellerName
-                );
-
-                aggressiveOrder.reduceQuantity(tradeQuantity);
-                matchedOrder.reduceQuantity(tradeQuantity);
-
-                if (matchedOrder.getQuantity() == 0) {
-                    queue.pop();
-
-                    if (queue.empty()) {
-                        matchingBook.erase(matchedOrderPrice);
-                    }
-                }
-
-                addToTradeHistory(trade);
-                output << trade.toString();
-            }
-            outputState();
-        }
+    EventSink& sink_;
+    BuySide    bids_;
+    SellSide   asks_;
+    // IDs of orders currently resting in the book, for duplicate detection.
+    std::unordered_set<OrderId> restingIds_;
+    SeqNum nextSeq_ = 1;
 };
+
+}  // namespace engine

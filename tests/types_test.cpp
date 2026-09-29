@@ -1,5 +1,6 @@
 #include "Types.h"
 #include "TypeStrings.h"
+#include "EnumPrinters.h"
 
 #include <gtest/gtest.h>
 

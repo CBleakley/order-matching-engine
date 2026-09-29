@@ -2,21 +2,19 @@
 
 #include <cstring>
 #include <iostream>
-#include <stdexcept>
+#include <exception>
 #include <string>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include "ioHelpers.h"
-#include "Order.h"
-#include "OrderBook.h"
+#include "CliSession.h"
 
 class TcpServer {
 private:
-    OrderBook& orderBook;
+    CliSession& session;
 
 public:
-    TcpServer(OrderBook& orderBook)
-        : orderBook(orderBook) {}
+    TcpServer(CliSession& session)
+        : session(session) {}
 
     void run() {
         // Initialise Winsock
@@ -70,10 +68,9 @@ public:
                 std::cout << "Received: " << input << '\n';
 
                 try {
-                    Order order = parseInput(input);
-                    orderBook.processOrder(order);
+                    session.handleInput(input);
                 }
-                catch (const std::runtime_error& e) {
+                catch (const std::exception& e) {
                     std::cout << e.what() << '\n';
                 }
 

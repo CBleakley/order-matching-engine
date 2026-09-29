@@ -1,8 +1,7 @@
 #include <iostream>
-#include <stdexcept>
+#include <exception>
 #include <string>
-#include "ioHelpers.h"
-#include "OrderBook.h"
+#include "CliSession.h"
 #include "EnvVarHelpers.h"
 #include "TcpServer.h"
 
@@ -17,10 +16,10 @@ std::string WELCOME_MSG =
 int main() {
     std::cout << WELCOME_MSG;
 
-    OrderBook orderBook(std::cout);
+    CliSession session(std::cout);
 
     if (!isLocal) {
-        TcpServer server(orderBook);
+        TcpServer server(session);
 
         server.run();
     } else {
@@ -35,9 +34,8 @@ int main() {
             }
 
             try {
-                Order order = parseInput(input);
-                orderBook.processOrder(order);
-            } catch (const std::runtime_error& e) {
+                session.handleInput(input);
+            } catch (const std::exception& e) {
                 std::cout << e.what() << '\n';
             }
         }
