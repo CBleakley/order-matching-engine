@@ -1,10 +1,14 @@
+#pragma once
+
+#include <cstring>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include "ioHelpers.h"
 #include "Order.h"
 #include "OrderBook.h"
-
-#pragma comment(lib, "Ws2_32.lib")
 
 class TcpServer {
 private:
@@ -79,7 +83,7 @@ public:
                 send(
                     clientSocket,
                     response,
-                    strlen(response),
+                    static_cast<int>(strlen(response)),
                     0
                 );
             }

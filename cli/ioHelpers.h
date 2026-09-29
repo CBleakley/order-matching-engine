@@ -1,10 +1,11 @@
 #pragma once
 
 #include <regex>
+#include <stdexcept>
+#include <string>
 #include "Order.h"
-#include "OrderBook.h"
 
-Order parseInput(const std::string& input) {
+inline Order parseInput(const std::string& input) {
     std::regex orderPattern(R"(^(Buy|buy|Sell|sell) ([^\s]+) ([1-9][0-9]*) ([1-9][0-9]*)$)");
 
     std::smatch match;
@@ -19,4 +20,4 @@ Order parseInput(const std::string& input) {
     }
 
     throw std::runtime_error("Invalid User Input");
-};
+}

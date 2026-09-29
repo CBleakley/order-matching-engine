@@ -10,7 +10,7 @@
 #include "Order.h"
 #include "Trade.h"
 
-std::size_t N_TRADES_TO_PRINT = 5;
+inline constexpr std::size_t N_TRADES_TO_PRINT = 5;
 
 class OrderBook {
     private:
@@ -63,7 +63,7 @@ class OrderBook {
             }
         }
 
-        void outputLastNTrades(std::size_t& n) const {
+        void outputLastNTrades(std::size_t n) const {
             output << "Last " << n << " trades:\n";
 
             if (tradeHistory.empty()) {

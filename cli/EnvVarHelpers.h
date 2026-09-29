@@ -1,7 +1,9 @@
+#pragma once
+
 #include <cstdlib>
 #include <string>
 
-bool getBooleanEnv(const char* name) {
+inline bool getBooleanEnv(const char* name) {
     const char* value = std::getenv(name);
 
     if (value == nullptr) {
