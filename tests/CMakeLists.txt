@@ -15,6 +15,8 @@ add_executable(tests
     placeholder_test.cpp
     types_standalone_test.cpp
     types_test.cpp
+    events_standalone_test.cpp
+    recording_sink_test.cpp
 )
 target_link_libraries(tests PRIVATE engine GTest::gtest_main)
 set_project_warnings(tests)
