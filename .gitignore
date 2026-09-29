@@ -23,3 +23,5 @@ Makefile
 Thumbs.db
 
 .env
+
+CLAUDE.MD
