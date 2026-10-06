@@ -1,5 +1,7 @@
 # Order Matching Engine
 
+[![CI](https://github.com/CBleakley/order-matching-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/CBleakley/order-matching-engine/actions/workflows/ci.yml)
+
 A price-time priority order matching engine. See [Requirements.md](Requirements.md) for the design.
 
 ## Project layout
@@ -91,3 +93,11 @@ The CLI golden tests run each `tests/golden/<name>.in` script through the CLI an
 transcript with `<name>.expected`, printing a line diff on mismatch. After an intended output
 change, regenerate the expected files with `GOLDEN_UPDATE=1` set while running the tests, and
 review the diff before committing.
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request, and can be
+started by hand from the Actions tab. It builds and tests the `release` and `debug-sanitize`
+presets on both Ubuntu (GCC, ASan + UBSan) and Windows (MSVC, ASan), using the same
+`cmake --preset` / `ctest --preset` commands as a local build. Tests labelled `slow` are not
+run in CI.
