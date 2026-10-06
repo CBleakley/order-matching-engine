@@ -2,6 +2,7 @@
 
 #include <ostream>
 
+#include "Invariants.h"
 #include "TypeStrings.h"
 #include "Types.h"
 
@@ -20,6 +21,10 @@ inline std::ostream& operator<<(std::ostream& os, Side side) { return os << toSt
 
 inline std::ostream& operator<<(std::ostream& os, RejectReason reason) {
     return os << toString(reason);
+}
+
+inline std::ostream& operator<<(std::ostream& os, Invariant invariant) {
+    return os << describe(invariant);
 }
 
 }  // namespace engine

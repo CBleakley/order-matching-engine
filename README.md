@@ -28,6 +28,10 @@ Available presets (build output goes to `build/<preset>/`):
 - `release`: Release build.
 - `debug-sanitize`: Debug build with AddressSanitizer and UndefinedBehaviorSanitizer.
   MSVC only supports AddressSanitizer, so UBSan is enabled only with GCC/Clang.
+  It also turns on `ENGINE_CHECK_INVARIANTS`, which checks the whole order book after every
+  `submit` and `cancel` and aborts with a description of the first broken invariant. In
+  other builds the checks are compiled out entirely. Pass `-DENGINE_CHECK_INVARIANTS=ON`
+  to enable them in any build.
 
 All project targets compile with warnings as errors (`-Wall -Wextra -Wpedantic -Werror`,
 or `/W4 /WX /permissive-` on MSVC).

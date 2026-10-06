@@ -20,6 +20,8 @@ add_executable(tests
     order_book_test.cpp
     order_book_cancel_test.cpp
     order_book_query_test.cpp
+    invariants_standalone_test.cpp
+    invariants_test.cpp
     console_sink_test.cpp
     golden_test.cpp
 )

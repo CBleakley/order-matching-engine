@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(ENABLE_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(ENGINE_CHECK_INVARIANTS "Check order book invariants after every submit and cancel" OFF)
 
 # Sanitizers are applied globally (including to GoogleTest) so that all
 # linked code is instrumented consistently.

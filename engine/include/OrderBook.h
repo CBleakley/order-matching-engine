@@ -18,6 +18,8 @@
 
 namespace engine {
 
+struct InvariantChecker;
+
 class OrderBook {
 public:
     // Aggregate view of one price level, as returned by depth().
@@ -38,46 +40,20 @@ public:
     // remainder. Emits OrderRejected on failure; otherwise OrderAccepted, then
     // a TradeEvent per fill, then OrderRested if quantity remains.
     void submit(OrderId id, TraderId trader, Side side, Price price, Quantity qty) {
-        if (price <= 0) {
-            sink_.onRejected({id, RejectReason::InvalidPrice});
-            return;
-        }
-        if (qty <= 0) {
-            sink_.onRejected({id, RejectReason::InvalidQuantity});
-            return;
-        }
-        if (index_.contains(id)) {
-            sink_.onRejected({id, RejectReason::DuplicateOrderId});
-            return;
-        }
-
-        Order order{id, trader, side, price, qty, nextSeq_++};
-        sink_.onAccepted({order.id, order.seq});
-
-        if (side == Side::Buy) {
-            match(order, asks_);
-            if (order.remaining > 0) rest(order, bids_);
-        } else {
-            match(order, bids_);
-            if (order.remaining > 0) rest(order, asks_);
-        }
+        submitImpl(id, trader, side, price, qty);
+#ifdef ENGINE_CHECK_INVARIANTS
+        verifyInvariants("submit");
+#endif
     }
 
     // Removes a resting order from the book and emits OrderCancelled with its
     // remaining quantity. Emits OrderRejected (UnknownOrderId) if the order is
     // not resting: never seen, already filled, or already cancelled.
     void cancel(OrderId id) {
-        const auto indexIt = index_.find(id);
-        if (indexIt == index_.end()) {
-            sink_.onRejected({id, RejectReason::UnknownOrderId});
-            return;
-        }
-
-        const Location& loc      = indexIt->second;
-        const Quantity remaining = loc.side == Side::Buy ? removeResting(bids_, loc)
-                                                         : removeResting(asks_, loc);
-        index_.erase(indexIt);
-        sink_.onCancelled({id, remaining});
+        cancelImpl(id);
+#ifdef ENGINE_CHECK_INVARIANTS
+        verifyInvariants("cancel");
+#endif
     }
 
     // --- Queries. None of these modify the book or emit events. ---
@@ -116,6 +92,7 @@ public:
 
 private:
     friend struct OrderBookTestPeer;
+    friend struct InvariantChecker;
 
     struct Level {
         std::list<Order> orders;
@@ -133,6 +110,51 @@ private:
         Price                      price;
         std::list<Order>::iterator it;
     };
+
+    void submitImpl(OrderId id, TraderId trader, Side side, Price price, Quantity qty) {
+        if (price <= 0) {
+            sink_.onRejected({id, RejectReason::InvalidPrice});
+            return;
+        }
+        if (qty <= 0) {
+            sink_.onRejected({id, RejectReason::InvalidQuantity});
+            return;
+        }
+        if (index_.contains(id)) {
+            sink_.onRejected({id, RejectReason::DuplicateOrderId});
+            return;
+        }
+
+        Order order{id, trader, side, price, qty, nextSeq_++};
+        sink_.onAccepted({order.id, order.seq});
+
+        if (side == Side::Buy) {
+            match(order, asks_);
+            if (order.remaining > 0) rest(order, bids_);
+        } else {
+            match(order, bids_);
+            if (order.remaining > 0) rest(order, asks_);
+        }
+    }
+
+    void cancelImpl(OrderId id) {
+        const auto indexIt = index_.find(id);
+        if (indexIt == index_.end()) {
+            sink_.onRejected({id, RejectReason::UnknownOrderId});
+            return;
+        }
+
+        const Location& loc      = indexIt->second;
+        const Quantity remaining = loc.side == Side::Buy ? removeResting(bids_, loc)
+                                                         : removeResting(asks_, loc);
+        index_.erase(indexIt);
+        sink_.onCancelled({id, remaining});
+    }
+
+#ifdef ENGINE_CHECK_INVARIANTS
+    // Aborts with a description of the problem if the book is inconsistent.
+    void verifyInvariants(const char* operation) const;
+#endif
 
     static bool crosses(const Order& taker, Price restingPrice) noexcept {
         return taker.side == Side::Buy ? taker.price >= restingPrice : taker.price <= restingPrice;
@@ -239,3 +261,26 @@ private:
 };
 
 }  // namespace engine
+
+#ifdef ENGINE_CHECK_INVARIANTS
+// Debug-only invariant checking after every operation (see Invariants.h).
+// Compiled out entirely unless ENGINE_CHECK_INVARIANTS is defined.
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
+
+#include "Invariants.h"
+
+inline void engine::OrderBook::verifyInvariants(const char* operation) const {
+    const std::optional<InvariantViolation> violation = checkInvariants(*this);
+    if (!violation) return;
+    std::fprintf(stderr,
+                 "engine invariant violated after %s: %s (side=%s, price=%" PRId64
+                 ", order=%" PRIu64 ")\n",
+                 operation, describe(violation->kind),
+                 violation->side == Side::Buy ? "Buy" : "Sell", violation->price,
+                 violation->orderId);
+    std::fflush(stderr);
+    std::abort();
+}
+#endif

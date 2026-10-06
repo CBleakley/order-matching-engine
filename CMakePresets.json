@@ -24,10 +24,11 @@
         {
             "name": "debug-sanitize",
             "inherits": "base",
-            "displayName": "Debug with ASan + UBSan (ASan only on MSVC)",
+            "displayName": "Debug with ASan + UBSan (ASan only on MSVC) and invariant checks",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "ENABLE_SANITIZERS": "ON"
+                "ENABLE_SANITIZERS": "ON",
+                "ENGINE_CHECK_INVARIANTS": "ON"
             }
         }
     ],
