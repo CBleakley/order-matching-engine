@@ -66,7 +66,7 @@ protected:
 TEST_P(CancelTest, CancelFrontOfLevel) {
     restThreeAt100();
     book.cancel(1);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 13);
+    EXPECT_EQ(book.volumeAt(maker, 100), 13);
 
     // Sweep the level: only 2 and 3 remain, in their original order.
     book.submit(4, kDave, taker, 100, 20);
@@ -84,7 +84,7 @@ TEST_P(CancelTest, CancelFrontOfLevel) {
 TEST_P(CancelTest, CancelMiddleOfLevel) {
     restThreeAt100();
     book.cancel(2);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 12);
+    EXPECT_EQ(book.volumeAt(maker, 100), 12);
 
     book.submit(4, kDave, taker, 100, 20);
 
@@ -101,7 +101,7 @@ TEST_P(CancelTest, CancelMiddleOfLevel) {
 TEST_P(CancelTest, CancelBackOfLevel) {
     restThreeAt100();
     book.cancel(3);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 11);
+    EXPECT_EQ(book.volumeAt(maker, 100), 11);
 
     book.submit(4, kDave, taker, 100, 20);
 
@@ -133,18 +133,17 @@ TEST_P(CancelTest, MiddleCancelPreservesTimePriority) {
         trade(3, kCarol, 5, kDave, 100, 4, 8),
     };
     EXPECT_EQ(sink.events(), expected);
-    EXPECT_FALSE(Peer::hasLevel(book, maker, 100));
+    EXPECT_EQ(book.volumeAt(maker, 100), 0);
 }
 
 // --- Level removal ---
 
 TEST_P(CancelTest, CancellingOnlyOrderRemovesLevel) {
     book.submit(1, kAlice, maker, 100, 10);
-    EXPECT_TRUE(Peer::hasLevel(book, maker, 100));
+    EXPECT_GT(book.volumeAt(maker, 100), 0);
 
     book.cancel(1);
-    EXPECT_FALSE(Peer::hasLevel(book, maker, 100));
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 0);
+    EXPECT_EQ(book.volumeAt(maker, 100), 0);
 
     // Nothing left to match: an opposite order at the same price rests.
     book.submit(2, kBob, taker, 100, 10);
@@ -164,8 +163,8 @@ TEST_P(CancelTest, CancellingBestLevelLeavesOthersIntact) {
     book.submit(2, kBob, maker, behind, 6);
 
     book.cancel(1);
-    EXPECT_FALSE(Peer::hasLevel(book, maker, 100));
-    EXPECT_EQ(Peer::totalQty(book, maker, behind), 6);
+    EXPECT_EQ(book.volumeAt(maker, 100), 0);
+    EXPECT_EQ(book.volumeAt(maker, behind), 6);
 
     // The next level is now the best.
     sink.clear();
@@ -192,7 +191,7 @@ TEST_P(CancelTest, CancelPartiallyFilledOrderReportsRemainingQty) {
         OrderCancelled{1, 6},
     };
     EXPECT_EQ(sink.events(), expected);
-    EXPECT_FALSE(Peer::hasLevel(book, maker, 100));
+    EXPECT_EQ(book.volumeAt(maker, 100), 0);
 }
 
 // --- Rejections ---
@@ -205,7 +204,7 @@ TEST_P(CancelTest, RejectsUnknownId) {
 
     const std::vector<Event> expected{OrderRejected{42, RejectReason::UnknownOrderId}};
     EXPECT_EQ(sink.events(), expected);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 10);
+    EXPECT_EQ(book.volumeAt(maker, 100), 10);
 }
 
 TEST_P(CancelTest, RejectsFilledId) {
@@ -222,7 +221,7 @@ TEST_P(CancelTest, RejectsFilledId) {
         OrderRejected{3, RejectReason::UnknownOrderId},
     };
     EXPECT_EQ(sink.events(), expected);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 5);
+    EXPECT_EQ(book.volumeAt(maker, 100), 5);
 }
 
 TEST_P(CancelTest, RejectsAlreadyCancelledId) {
@@ -235,7 +234,7 @@ TEST_P(CancelTest, RejectsAlreadyCancelledId) {
 
     const std::vector<Event> expected{OrderRejected{1, RejectReason::UnknownOrderId}};
     EXPECT_EQ(sink.events(), expected);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 5);
+    EXPECT_EQ(book.volumeAt(maker, 100), 5);
 }
 
 TEST_P(CancelTest, CancelledIdCanBeReused) {
@@ -251,36 +250,35 @@ TEST_P(CancelTest, CancelledIdCanBeReused) {
         OrderRested{1, maker, 100, 3},
     };
     EXPECT_EQ(sink.events(), expected);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 3);
+    EXPECT_EQ(book.volumeAt(maker, 100), 3);
 }
 
 // --- Level totals ---
 
 TEST_P(CancelTest, TotalQtyTracksRestsFillsAndCancels) {
     book.submit(1, kAlice, maker, 100, 10);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 10);
+    EXPECT_EQ(book.volumeAt(maker, 100), 10);
 
     book.submit(2, kBob, maker, 100, 7);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 17);
+    EXPECT_EQ(book.volumeAt(maker, 100), 17);
 
     book.submit(3, kCarol, taker, 100, 4);  // partial fill of order 1
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 13);
+    EXPECT_EQ(book.volumeAt(maker, 100), 13);
     Peer::expectInvariants(book);
 
     book.submit(4, kCarol, taker, 100, 6);  // fills the rest of order 1
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 7);
+    EXPECT_EQ(book.volumeAt(maker, 100), 7);
     Peer::expectInvariants(book);
 
     book.submit(5, kAlice, maker, 100, 2);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 9);
+    EXPECT_EQ(book.volumeAt(maker, 100), 9);
 
     book.cancel(2);
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 2);
+    EXPECT_EQ(book.volumeAt(maker, 100), 2);
     Peer::expectInvariants(book);
 
     book.submit(6, kDave, taker, 100, 2);  // full fill empties the level
-    EXPECT_EQ(Peer::totalQty(book, maker, 100), 0);
-    EXPECT_FALSE(Peer::hasLevel(book, maker, 100));
+    EXPECT_EQ(book.volumeAt(maker, 100), 0);
 }
 
 TEST_P(CancelTest, TotalQtyAcrossSweptLevels) {
@@ -291,19 +289,19 @@ TEST_P(CancelTest, TotalQtyAcrossSweptLevels) {
     // Clears the best level and takes part of the next.
     book.submit(4, kDave, taker, behind, 8);
 
-    EXPECT_FALSE(Peer::hasLevel(book, maker, 100));
-    EXPECT_EQ(Peer::totalQty(book, maker, behind), 7);
+    EXPECT_EQ(book.volumeAt(maker, 100), 0);
+    EXPECT_EQ(book.volumeAt(maker, behind), 7);
 }
 
 TEST_P(CancelTest, TotalQtyOfRestingTakerRemainder) {
     book.submit(1, kAlice, maker, 100, 4);
     book.submit(2, kBob, taker, 100, 10);  // fills order 1, rests 6
 
-    EXPECT_FALSE(Peer::hasLevel(book, maker, 100));
-    EXPECT_EQ(Peer::totalQty(book, taker, 100), 6);
+    EXPECT_EQ(book.volumeAt(maker, 100), 0);
+    EXPECT_EQ(book.volumeAt(taker, 100), 6);
 
     book.cancel(2);
-    EXPECT_FALSE(Peer::hasLevel(book, taker, 100));
+    EXPECT_EQ(book.volumeAt(taker, 100), 0);
 
     const std::vector<Event> expected{
         OrderAccepted{1, 1},

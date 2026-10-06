@@ -1,11 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <functional>
 #include <iterator>
 #include <list>
 #include <map>
+#include <optional>
 #include <unordered_map>
+#include <vector>
 
 #include "Events.h"
 #include "Types.h"
@@ -17,6 +20,15 @@ namespace engine {
 
 class OrderBook {
 public:
+    // Aggregate view of one price level, as returned by depth().
+    struct LevelView {
+        Price       price;
+        Quantity    totalQty;
+        std::size_t orderCount;
+
+        bool operator==(const LevelView&) const = default;
+    };
+
     explicit OrderBook(EventSink& sink) : sink_(sink) {}
 
     OrderBook(const OrderBook&)            = delete;
@@ -66,6 +78,40 @@ public:
                                                          : removeResting(asks_, loc);
         index_.erase(indexIt);
         sink_.onCancelled({id, remaining});
+    }
+
+    // --- Queries. None of these modify the book or emit events. ---
+
+    std::optional<Price> bestBid() const { return bestPrice(bids_); }
+    std::optional<Price> bestAsk() const { return bestPrice(asks_); }
+
+    // Total resting quantity at a price level, or 0 if there is none.
+    Quantity volumeAt(Side side, Price price) const {
+        return side == Side::Buy ? volumeAt(bids_, price) : volumeAt(asks_, price);
+    }
+
+    // Total number of resting orders across both sides.
+    std::size_t orderCount() const noexcept { return index_.size(); }
+
+    // Replaces the contents of `out` with up to `maxLevels` levels of one
+    // side, best price first. Reuses `out`'s capacity where possible.
+    void depth(Side side, std::size_t maxLevels, std::vector<LevelView>& out) const {
+        if (side == Side::Buy) {
+            depth(bids_, maxLevels, out);
+        } else {
+            depth(asks_, maxLevels, out);
+        }
+    }
+
+    // Calls fn(const Order&) for each order resting at a price level, in time
+    // priority order. Does nothing if there is no such level.
+    template <typename Fn>
+    void forEachOrder(Side side, Price price, Fn&& fn) const {
+        if (side == Side::Buy) {
+            forEachOrder(bids_, price, fn);
+        } else {
+            forEachOrder(asks_, price, fn);
+        }
     }
 
 private:
@@ -153,6 +199,34 @@ private:
         level.orders.erase(loc.it);
         if (level.orders.empty()) side.erase(levelIt);
         return remaining;
+    }
+
+    template <typename SideMap>
+    static std::optional<Price> bestPrice(const SideMap& side) {
+        if (side.empty()) return std::nullopt;
+        return side.begin()->first;
+    }
+
+    template <typename SideMap>
+    static Quantity volumeAt(const SideMap& side, Price price) {
+        const auto it = side.find(price);
+        return it == side.end() ? 0 : it->second.totalQty;
+    }
+
+    template <typename SideMap>
+    static void depth(const SideMap& side, std::size_t maxLevels, std::vector<LevelView>& out) {
+        out.clear();
+        out.reserve(std::min(maxLevels, side.size()));
+        for (auto it = side.begin(); it != side.end() && out.size() < maxLevels; ++it) {
+            out.push_back({it->first, it->second.totalQty, it->second.orders.size()});
+        }
+    }
+
+    template <typename SideMap, typename Fn>
+    static void forEachOrder(const SideMap& side, Price price, Fn& fn) {
+        const auto it = side.find(price);
+        if (it == side.end()) return;
+        for (const Order& order : it->second.orders) fn(order);
     }
 
     EventSink& sink_;
