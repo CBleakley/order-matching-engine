@@ -18,6 +18,7 @@ add_executable(tests
     recording_sink_test.cpp
     order_book_standalone_test.cpp
     order_book_test.cpp
+    order_book_cancel_test.cpp
 )
 target_link_libraries(tests PRIVATE engine GTest::gtest_main)
 set_project_warnings(tests)
