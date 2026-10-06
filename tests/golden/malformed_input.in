@@ -1,0 +1,24 @@
+
+   
+foo
+BUY alice 5 100
+buy alice
+buy alice 5 100 extra
+buy alice five 100
+buy alice 5 1.5
+buy alice 5 100abc
+buy alice 99999999999999999999 100
+buy alice 0 100
+buy alice 5 0
+sell bob -3 100
+sell bob 3 -100
+cancel
+cancel abc
+cancel -1
+cancel 1 2
+book 0
+book x
+book 1 2
+trades now
+help me
+book

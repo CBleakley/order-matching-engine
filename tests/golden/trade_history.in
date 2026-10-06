@@ -1,0 +1,11 @@
+trades
+sell alice 1 100
+sell alice 2 101
+sell alice 3 102
+sell alice 4 103
+sell alice 5 104
+sell alice 6 105
+sell alice 7 106
+buy bob 28 106
+trades
+book

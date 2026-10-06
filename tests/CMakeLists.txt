@@ -20,9 +20,16 @@ add_executable(tests
     order_book_test.cpp
     order_book_cancel_test.cpp
     order_book_query_test.cpp
+    console_sink_test.cpp
+    golden_test.cpp
 )
-target_link_libraries(tests PRIVATE engine GTest::gtest_main)
+target_link_libraries(tests PRIVATE engine cli_lib GTest::gtest_main)
 set_project_warnings(tests)
+target_compile_definitions(tests PRIVATE GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden")
+if(MSVC)
+    # std::getenv is standard C++; silence MSVC's deprecation in favour of _dupenv_s.
+    target_compile_definitions(tests PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 
 include(GoogleTest)
 gtest_discover_tests(tests)

@@ -1,80 +1,102 @@
 #pragma once
 
+#include <cstddef>
+#include <iomanip>
 #include <ostream>
-#include <string>
-#include <unordered_map>
+#include <string_view>
 #include <vector>
-#include "Events.h"
-#include "ioHelpers.h"
+
+#include "CommandParser.h"
+#include "ConsoleSink.h"
 #include "OrderBook.h"
-#include "TypeStrings.h"
+#include "TraderRegistry.h"
 
-// Minimal glue between text input and the engine: maps trader names to
-// TraderIds, assigns order IDs, and prints engine events. To be replaced in
-// P0-07.
-
-class TraderRegistry {
-public:
-    engine::TraderId idFor(const std::string& name) {
-        auto [it, inserted] = ids_.try_emplace(name, static_cast<engine::TraderId>(names_.size()));
-        if (inserted) names_.push_back(name);
-        return it->second;
-    }
-
-    const std::string& nameOf(engine::TraderId id) const { return names_.at(id); }
-
-private:
-    std::unordered_map<std::string, engine::TraderId> ids_;
-    std::vector<std::string> names_;
-};
-
-class PrintingSink : public engine::EventSink {
-public:
-    PrintingSink(std::ostream& out, const TraderRegistry& traders) : out_(out), traders_(traders) {}
-
-    void onAccepted(const engine::OrderAccepted& e) override {
-        out_ << "Order " << e.id << " accepted (seq=" << e.seq << ")\n";
-    }
-
-    void onRejected(const engine::OrderRejected& e) override {
-        out_ << "Order " << e.id << " rejected: " << engine::toString(e.reason) << '\n';
-    }
-
-    void onTrade(const engine::TradeEvent& e) override {
-        out_ << "Trade executed: price=" << e.price << ", quantity=" << e.qty
-             << ", buyer=" << traders_.nameOf(e.buyer) << ", seller=" << traders_.nameOf(e.seller)
-             << '\n';
-    }
-
-    void onRested(const engine::OrderRested& e) override {
-        out_ << "Order " << e.id << " rested: " << engine::toString(e.side) << ' ' << e.qty
-             << " @ " << e.price << '\n';
-    }
-
-    void onCancelled(const engine::OrderCancelled& e) override {
-        out_ << "Order " << e.id << " cancelled (" << e.cancelledQty << ")\n";
-    }
-
-private:
-    std::ostream& out_;
-    const TraderRegistry& traders_;
-};
-
+// Executes CLI commands against an order book. Owns the book, the trader
+// name registry and the sink that prints events; assigns order IDs.
 class CliSession {
 public:
-    explicit CliSession(std::ostream& out) : sink_(out, traders_), book_(sink_) {}
+    explicit CliSession(std::ostream& out, std::size_t tradeHistory = 5)
+        : out_(out), sink_(out, traders_, tradeHistory), book_(sink_) {}
 
-    // Parses one line of input and submits it; throws std::runtime_error on
-    // malformed input.
-    void handleInput(const std::string& input) {
-        const ParsedOrder order = parseInput(input);
-        book_.submit(nextOrderId_++, traders_.idFor(order.traderName), order.side, order.price,
-                     order.quantity);
+    // Runs one line of input. Malformed input prints an error and is
+    // otherwise ignored. Returns false if the user asked to quit.
+    bool execute(std::string_view line) {
+        try {
+            return std::visit([this](const auto& command) { return run(command); },
+                              commands::parseCommand(line));
+        } catch (const commands::CommandError& e) {
+            out_ << "error: " << e.what() << '\n';
+            return true;
+        }
     }
 
 private:
+    bool run(const commands::Order& c) {
+        book_.submit(nextOrderId_++, traders_.idFor(c.trader), c.side, c.price, c.qty);
+        return true;
+    }
+
+    bool run(const commands::Cancel& c) {
+        book_.cancel(c.id);
+        return true;
+    }
+
+    bool run(const commands::Book& c) {
+        printBook(c.levels);
+        return true;
+    }
+
+    bool run(const commands::Trades&) {
+        sink_.printRecentTrades();
+        return true;
+    }
+
+    bool run(const commands::Help&) {
+        out_ << commands::kHelpText;
+        return true;
+    }
+
+    bool run(const commands::Quit&) { return false; }
+    bool run(const commands::Empty&) { return true; }
+
+    // Prints asks above bids, each best price nearest the middle, with every
+    // order at each level in time priority.
+    void printBook(std::size_t levels) {
+        book_.depth(engine::Side::Sell, levels, asks_);
+        book_.depth(engine::Side::Buy, levels, bids_);
+        if (asks_.empty() && bids_.empty()) {
+            out_ << "Book is empty\n";
+            return;
+        }
+
+        if (asks_.empty()) out_ << "  (no asks)\n";
+        for (auto it = asks_.rbegin(); it != asks_.rend(); ++it) printLevel(engine::Side::Sell, *it);
+        out_ << "  --------\n";
+        for (const auto& level : bids_) printLevel(engine::Side::Buy, level);
+        if (bids_.empty()) out_ << "  (no bids)\n";
+    }
+
+    void printLevel(engine::Side side, const engine::OrderBook::LevelView& level) {
+        out_ << (side == engine::Side::Buy ? "  BID " : "  ASK ") << std::setw(6) << level.price
+             << "  qty " << std::setw(6) << level.totalQty << "  ("
+             << level.orderCount << (level.orderCount == 1 ? " order)  " : " orders) ");
+
+        std::string_view separator = "";
+        book_.forEachOrder(side, level.price, [&](const engine::Order& order) {
+            out_ << separator << '#' << order.id << ' ' << traders_.nameOf(order.trader) << ' '
+                 << order.remaining;
+            separator = ", ";
+        });
+        out_ << '\n';
+    }
+
+    std::ostream&     out_;
     TraderRegistry    traders_;
-    PrintingSink      sink_;
+    ConsoleSink       sink_;
     engine::OrderBook book_;
     engine::OrderId   nextOrderId_ = 1;
+
+    // Reused across `book` commands.
+    std::vector<engine::OrderBook::LevelView> asks_;
+    std::vector<engine::OrderBook::LevelView> bids_;
 };

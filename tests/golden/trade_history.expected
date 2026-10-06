@@ -1,0 +1,43 @@
+Order matching engine. Type 'help' for commands.
+> trades
+No trades yet
+> sell alice 1 100
+Order 1 accepted
+Order 1 rested: Sell 1 @ 100
+> sell alice 2 101
+Order 2 accepted
+Order 2 rested: Sell 2 @ 101
+> sell alice 3 102
+Order 3 accepted
+Order 3 rested: Sell 3 @ 102
+> sell alice 4 103
+Order 4 accepted
+Order 4 rested: Sell 4 @ 103
+> sell alice 5 104
+Order 5 accepted
+Order 5 rested: Sell 5 @ 104
+> sell alice 6 105
+Order 6 accepted
+Order 6 rested: Sell 6 @ 105
+> sell alice 7 106
+Order 7 accepted
+Order 7 rested: Sell 7 @ 106
+> buy bob 28 106
+Order 8 accepted
+Trade: 1 @ 100, buyer=bob, seller=alice (maker #1, taker #8)
+Trade: 2 @ 101, buyer=bob, seller=alice (maker #2, taker #8)
+Trade: 3 @ 102, buyer=bob, seller=alice (maker #3, taker #8)
+Trade: 4 @ 103, buyer=bob, seller=alice (maker #4, taker #8)
+Trade: 5 @ 104, buyer=bob, seller=alice (maker #5, taker #8)
+Trade: 6 @ 105, buyer=bob, seller=alice (maker #6, taker #8)
+Trade: 7 @ 106, buyer=bob, seller=alice (maker #7, taker #8)
+> trades
+Last 5 trade(s), oldest first:
+  3 @ 102, buyer=bob, seller=alice (maker #3, taker #8)
+  4 @ 103, buyer=bob, seller=alice (maker #4, taker #8)
+  5 @ 104, buyer=bob, seller=alice (maker #5, taker #8)
+  6 @ 105, buyer=bob, seller=alice (maker #6, taker #8)
+  7 @ 106, buyer=bob, seller=alice (maker #7, taker #8)
+> book
+Book is empty
+> 

@@ -1,46 +1,45 @@
+#include <cstddef>
 #include <iostream>
-#include <exception>
-#include <string>
-#include "CliSession.h"
-#include "EnvVarHelpers.h"
-#include "TcpServer.h"
+#include <string_view>
 
-bool isLocal = getBooleanEnv("IS_LOCAL");
+#include "CommandParser.h"
+#include "Repl.h"
 
-std::string WELCOME_MSG = 
-    "Welcome to Conor's Stock Exchange!\n"
-    "Submitting a sell order: Sell <orderer's name> <price> <quantity>\n"
-    "Submitting a buy order: Buy <orderer's name> <price> <quantity>\n"
-    "Exiting program: Exit\n\n";
+namespace {
 
-int main() {
-    std::cout << WELCOME_MSG;
+void printUsage(std::ostream& os) {
+    os << "Usage: cli [--trades N]\n"
+          "  --trades N   number of recent trades kept for the 'trades' command (default 5)\n";
+}
 
-    CliSession session(std::cout);
+}  // namespace
 
-    if (!isLocal) {
-        TcpServer server(session);
+int main(int argc, char** argv) {
+    ReplOptions options;
 
-        server.run();
-    } else {
-        while (true) {
-            std::cout << "Enter an order:";
-
-            std::string input;
-            std::getline(std::cin, input);
-
-            if (input == "exit" || input == "Exit") {
-                break;
-            }
-
-            try {
-                session.handleInput(input);
-            } catch (const std::exception& e) {
-                std::cout << e.what() << '\n';
-            }
+    for (int i = 1; i < argc; ++i) {
+        const std::string_view arg = argv[i];
+        if (arg == "--help" || arg == "-h") {
+            printUsage(std::cout);
+            return 0;
         }
-
+        if (arg == "--trades" && i + 1 < argc) {
+            try {
+                options.tradeHistory = commands::parseNumber<std::size_t>(argv[++i], "trade count");
+            } catch (const commands::CommandError& e) {
+                std::cerr << "error: " << e.what() << '\n';
+                return 2;
+            }
+            if (options.tradeHistory == 0) {
+                std::cerr << "error: trade count must be at least 1\n";
+                return 2;
+            }
+            continue;
+        }
+        printUsage(std::cerr);
+        return 2;
     }
 
+    runRepl(std::cin, std::cout, options);
     return 0;
 }

@@ -1,0 +1,12 @@
+buy alice 10 100
+buy bob 5 100
+buy carol 7 99
+cancel 2
+book
+sell dave 4 100
+cancel 1
+cancel 42
+cancel 1
+sell erin 7 99
+cancel 3
+book

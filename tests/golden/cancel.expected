@@ -1,0 +1,34 @@
+Order matching engine. Type 'help' for commands.
+> buy alice 10 100
+Order 1 accepted
+Order 1 rested: Buy 10 @ 100
+> buy bob 5 100
+Order 2 accepted
+Order 2 rested: Buy 5 @ 100
+> buy carol 7 99
+Order 3 accepted
+Order 3 rested: Buy 7 @ 99
+> cancel 2
+Order 2 cancelled (5 remaining)
+> book
+  (no asks)
+  --------
+  BID    100  qty     10  (1 order)  #1 alice 10
+  BID     99  qty      7  (1 order)  #3 carol 7
+> sell dave 4 100
+Order 4 accepted
+Trade: 4 @ 100, buyer=alice, seller=dave (maker #1, taker #4)
+> cancel 1
+Order 1 cancelled (6 remaining)
+> cancel 42
+Order 42 rejected: UnknownOrderId
+> cancel 1
+Order 1 rejected: UnknownOrderId
+> sell erin 7 99
+Order 5 accepted
+Trade: 7 @ 99, buyer=carol, seller=erin (maker #3, taker #5)
+> cancel 3
+Order 3 rejected: UnknownOrderId
+> book
+Book is empty
+> 

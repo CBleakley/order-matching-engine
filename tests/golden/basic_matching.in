@@ -1,0 +1,10 @@
+sell alice 10 101
+sell bob 5 102
+buy carol 4 100
+book
+buy dave 10 101
+buy erin 8 102
+book
+sell alice 6 99
+book
+trades

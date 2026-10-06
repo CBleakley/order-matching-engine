@@ -1,0 +1,3 @@
+# Golden CLI transcripts are compared byte for byte (after dropping CRs);
+# keep them LF everywhere so diffs stay clean.
+tests/golden/** text eol=lf

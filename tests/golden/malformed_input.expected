@@ -1,0 +1,51 @@
+Order matching engine. Type 'help' for commands.
+> 
+>    
+> foo
+error: unknown command 'foo' (type 'help')
+> BUY alice 5 100
+Order 1 accepted
+Order 1 rested: Buy 5 @ 100
+> buy alice
+error: expected: buy <trader> <qty> <price>
+> buy alice 5 100 extra
+error: expected: buy <trader> <qty> <price>
+> buy alice five 100
+error: invalid quantity 'five'
+> buy alice 5 1.5
+error: invalid price '1.5'
+> buy alice 5 100abc
+error: invalid price '100abc'
+> buy alice 99999999999999999999 100
+error: quantity '99999999999999999999' is out of range
+> buy alice 0 100
+Order 2 rejected: InvalidQuantity
+> buy alice 5 0
+Order 3 rejected: InvalidPrice
+> sell bob -3 100
+Order 4 rejected: InvalidQuantity
+> sell bob 3 -100
+Order 5 rejected: InvalidPrice
+> cancel
+error: expected: cancel <orderId>
+> cancel abc
+error: invalid order id 'abc'
+> cancel -1
+error: invalid order id '-1'
+> cancel 1 2
+error: expected: cancel <orderId>
+> book 0
+error: levels must be at least 1
+> book x
+error: invalid levels 'x'
+> book 1 2
+error: expected: book [levels]
+> trades now
+error: expected: trades
+> help me
+error: expected: help
+> book
+  (no asks)
+  --------
+  BID    100  qty      5  (1 order)  #1 alice 5
+> 

@@ -1,0 +1,44 @@
+Order matching engine. Type 'help' for commands.
+> buy alice 3 100
+Order 1 accepted
+Order 1 rested: Buy 3 @ 100
+> buy bob 4 100
+Order 2 accepted
+Order 2 rested: Buy 4 @ 100
+> buy carol 5 99
+Order 3 accepted
+Order 3 rested: Buy 5 @ 99
+> buy alice 6 98
+Order 4 accepted
+Order 4 rested: Buy 6 @ 98
+> sell bob 2 101
+Order 5 accepted
+Order 5 rested: Sell 2 @ 101
+> sell carol 3 101
+Order 6 accepted
+Order 6 rested: Sell 3 @ 101
+> sell dave 4 103
+Order 7 accepted
+Order 7 rested: Sell 4 @ 103
+> sell alice 1 105
+Order 8 accepted
+Order 8 rested: Sell 1 @ 105
+> book 1
+  ASK    101  qty      5  (2 orders) #5 bob 2, #6 carol 3
+  --------
+  BID    100  qty      7  (2 orders) #1 alice 3, #2 bob 4
+> book 2
+  ASK    103  qty      4  (1 order)  #7 dave 4
+  ASK    101  qty      5  (2 orders) #5 bob 2, #6 carol 3
+  --------
+  BID    100  qty      7  (2 orders) #1 alice 3, #2 bob 4
+  BID     99  qty      5  (1 order)  #3 carol 5
+> book
+  ASK    105  qty      1  (1 order)  #8 alice 1
+  ASK    103  qty      4  (1 order)  #7 dave 4
+  ASK    101  qty      5  (2 orders) #5 bob 2, #6 carol 3
+  --------
+  BID    100  qty      7  (2 orders) #1 alice 3, #2 bob 4
+  BID     99  qty      5  (1 order)  #3 carol 5
+  BID     98  qty      6  (1 order)  #4 alice 6
+> 

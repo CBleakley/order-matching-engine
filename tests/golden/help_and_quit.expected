@@ -1,0 +1,14 @@
+Order matching engine. Type 'help' for commands.
+> help
+Commands:
+  buy <trader> <qty> <price>   submit a buy order
+  sell <trader> <qty> <price>  submit a sell order
+  cancel <orderId>             cancel a resting order
+  book [levels]                show the book (default 10 levels per side)
+  trades                       show the most recent trades
+  help                         show this message
+  quit                         exit
+> buy alice 5 100
+Order 1 accepted
+Order 1 rested: Buy 5 @ 100
+> quit
