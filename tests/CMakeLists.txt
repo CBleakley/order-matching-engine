@@ -1,3 +1,9 @@
+# The random order flow generator (RandomOrderFlow.h) has no test-framework
+# dependencies, so the bench target can use it as a load generator.
+add_library(order_flow INTERFACE)
+target_include_directories(order_flow INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(order_flow INTERFACE engine)
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -24,6 +30,9 @@ add_executable(tests
     invariants_test.cpp
     console_sink_test.cpp
     golden_test.cpp
+    reference_order_book_test.cpp
+    random_order_flow_test.cpp
+    differential_test.cpp
 )
 target_link_libraries(tests PRIVATE engine cli_lib GTest::gtest_main)
 set_project_warnings(tests)
@@ -33,5 +42,15 @@ if(MSVC)
     target_compile_definitions(tests PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
+# Long-running differential tests, labelled `slow` and excluded from the
+# default test presets. Run them with `ctest --preset slow`.
+add_executable(slow_tests differential_slow_test.cpp)
+target_link_libraries(slow_tests PRIVATE engine GTest::gtest_main)
+set_project_warnings(slow_tests)
+if(MSVC)
+    target_compile_definitions(slow_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 include(GoogleTest)
 gtest_discover_tests(tests)
+gtest_discover_tests(slow_tests PROPERTIES LABELS slow)

@@ -66,6 +66,27 @@ ctest --preset debug
 
 Use `--preset debug-sanitize` to run the tests under the sanitizers.
 
+### Differential tests
+
+`tests/ReferenceOrderBook.h` is a deliberately naive order book (one vector, linear scans).
+The differential tests feed identical seeded random order flow (`tests/RandomOrderFlow.h`) to
+it and to the real engine, and fail on the first difference in their events or visible state,
+reporting the seed, operation and differing events. To rerun a single seed, set `DIFF_SEED`:
+
+```sh
+DIFF_SEED=42 ./build/debug/tests/tests --gtest_filter=Differential.DefaultFlow
+```
+
+Longer runs (several million operations) are labelled `slow` and excluded from the default
+test presets. Run them with:
+
+```sh
+cmake --preset release && cmake --build --preset release
+ctest --preset slow
+```
+
+### Golden tests
+
 The CLI golden tests run each `tests/golden/<name>.in` script through the CLI and compare the
 transcript with `<name>.expected`, printing a line diff on mismatch. After an intended output
 change, regenerate the expected files with `GOLDEN_UPDATE=1` set while running the tests, and

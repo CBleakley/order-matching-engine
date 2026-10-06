@@ -41,17 +41,34 @@
         {
             "name": "debug",
             "configurePreset": "debug",
-            "output": { "outputOnFailure": true }
+            "output": { "outputOnFailure": true },
+            "filter": { "exclude": { "label": "slow" } }
         },
         {
             "name": "release",
             "configurePreset": "release",
-            "output": { "outputOnFailure": true }
+            "output": { "outputOnFailure": true },
+            "filter": { "exclude": { "label": "slow" } }
         },
         {
             "name": "debug-sanitize",
             "configurePreset": "debug-sanitize",
-            "output": { "outputOnFailure": true }
+            "output": { "outputOnFailure": true },
+            "filter": { "exclude": { "label": "slow" } }
+        },
+        {
+            "name": "slow",
+            "displayName": "Slow tests (Release)",
+            "configurePreset": "release",
+            "output": { "outputOnFailure": true },
+            "filter": { "include": { "label": "slow" } }
+        },
+        {
+            "name": "slow-sanitize",
+            "displayName": "Slow tests (debug-sanitize)",
+            "configurePreset": "debug-sanitize",
+            "output": { "outputOnFailure": true },
+            "filter": { "include": { "label": "slow" } }
         }
     ]
 }
