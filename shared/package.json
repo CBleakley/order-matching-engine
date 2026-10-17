@@ -13,5 +13,9 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@ome/protocol": "*",
+    "zod": "^4.6.7"
   }
 }

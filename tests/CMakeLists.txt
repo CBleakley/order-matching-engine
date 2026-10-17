@@ -33,10 +33,15 @@ add_executable(tests
     reference_order_book_test.cpp
     random_order_flow_test.cpp
     differential_test.cpp
+    instrument_test.cpp
+    price_test.cpp
 )
-target_link_libraries(tests PRIVATE engine cli_lib GTest::gtest_main)
+target_link_libraries(tests PRIVATE engine cli_lib engine_service_lib GTest::gtest_main)
 set_project_warnings(tests)
-target_compile_definitions(tests PRIVATE GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden")
+target_compile_definitions(tests PRIVATE
+    GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden"
+    PROTOCOL_DIR="${PROJECT_SOURCE_DIR}/protocol"
+)
 if(MSVC)
     # std::getenv is standard C++; silence MSVC's deprecation in favour of _dupenv_s.
     target_compile_definitions(tests PRIVATE _CRT_SECURE_NO_WARNINGS)

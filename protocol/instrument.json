@@ -1,0 +1,10 @@
+{
+  "symbol": "NOVA",
+  "name": "Nova Dynamics",
+  "tickSize": "0.01",
+  "priceDecimals": 2,
+  "minPriceTicks": 1,
+  "maxPriceTicks": 100000000,
+  "maxOrderQty": 10000,
+  "referencePriceTicks": 14250
+}

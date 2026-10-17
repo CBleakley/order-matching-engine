@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "protocol",
     "shared",
     "gateway",
     "web"
@@ -11,11 +12,11 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces --if-present",
     "build:shared": "npm run build -w @ome/shared",
     "lint": "npm run build:shared && eslint . && prettier --check .",
-    "typecheck": "npm run build:shared && npm run typecheck --workspaces",
-    "test": "npm run build:shared && npm test --workspaces",
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
+    "test": "npm run build:shared && npm test --workspaces --if-present",
     "check": "npm run lint && npm run typecheck && npm test",
     "format": "prettier --write ."
   },

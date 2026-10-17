@@ -1,0 +1,376 @@
+{
+  "description": "Instrument configs that both the C++ and TypeScript loaders must reject. Each case is protocol/instrument.json with one defect. JSON integers written with a fractional part (e.g. 1.0) are deliberately absent: JavaScript cannot distinguish them from integers.",
+  "invalid": [
+    {
+      "description": "not an object (array)",
+      "config": []
+    },
+    {
+      "description": "not an object (null)",
+      "config": null
+    },
+    {
+      "description": "missing referencePriceTicks",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000
+      }
+    },
+    {
+      "description": "missing tickSize",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "unknown key",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250,
+        "currency": "USD"
+      }
+    },
+    {
+      "description": "symbol empty",
+      "config": {
+        "symbol": "",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "symbol lowercase",
+      "config": {
+        "symbol": "nova",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "symbol longer than 16 characters",
+      "config": {
+        "symbol": "ABCDEFGHIJKLMNOPQ",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "symbol with punctuation",
+      "config": {
+        "symbol": "NO-VA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "symbol not a string",
+      "config": {
+        "symbol": 7,
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "name empty",
+      "config": {
+        "symbol": "NOVA",
+        "name": "",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "tickSize as a number",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": 0.01,
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "tickSize disagrees with priceDecimals",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.1",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "tickSize with trailing zero",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.010",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "tickSize not a power of ten",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.05",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "tickSize without leading zero",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": ".01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "priceDecimals negative",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "10",
+        "priceDecimals": -1,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "priceDecimals above 8",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.000000001",
+        "priceDecimals": 9,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "priceDecimals fractional",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2.5,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "minPriceTicks zero",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 0,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "minPriceTicks fractional",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1.5,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "maxPriceTicks as a string",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": "100000000",
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "minPriceTicks above maxPriceTicks",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 200,
+        "maxPriceTicks": 100,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 150
+      }
+    },
+    {
+      "description": "referencePriceTicks below minPriceTicks",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 100,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 50
+      }
+    },
+    {
+      "description": "referencePriceTicks above maxPriceTicks",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 10000,
+        "referencePriceTicks": 100000001
+      }
+    },
+    {
+      "description": "maxOrderQty zero",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 0,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "maxOrderQty negative",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": -10,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "maxOrderQty as a string",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": "10000",
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "maxPriceTicks * maxOrderQty above 2^53 - 1",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 100000000,
+        "maxOrderQty": 100000000,
+        "referencePriceTicks": 14250
+      }
+    },
+    {
+      "description": "maxPriceTicks above 2^53 - 1",
+      "config": {
+        "symbol": "NOVA",
+        "name": "Nova Dynamics",
+        "tickSize": "0.01",
+        "priceDecimals": 2,
+        "minPriceTicks": 1,
+        "maxPriceTicks": 9007199254740993,
+        "maxOrderQty": 1,
+        "referencePriceTicks": 14250
+      }
+    }
+  ]
+}

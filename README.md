@@ -12,7 +12,7 @@ A price-time priority order matching engine. See [Requirements.md](Requirements.
 | `cli/`            | `cli`            | Interactive command-line front end, links `engine`.             |
 | `tests/`          | `tests`          | GoogleTest suite (fetched via `FetchContent`), run with CTest.  |
 | `bench/`          | `bench`          | Placeholder for Phase 1 benchmarks.                             |
-| `engine-service/` | `engine_service` | Phase 1 engine service (placeholder executable for now).        |
+| `engine-service/` | `engine_service` | Phase 1 engine service; loads the instrument config for now.    |
 
 ## Phase 1 layout
 
@@ -28,6 +28,14 @@ Phase 1 adds a web UI on top of the engine. The new directories are:
 
 The TypeScript packages are npm workspaces sharing one root toolchain: TypeScript in `strict`
 mode (ESM, `tsconfig.base.json`), ESLint with typescript-eslint, Prettier and Vitest.
+`protocol/` is also a workspace (`@ome/protocol`, data files only) so that TypeScript can
+import its JSON files.
+
+The instrument (NOVA, tick size 0.01) is defined once in `protocol/instrument.json`; see
+[protocol/README.md](protocol/README.md) for its fields, validation rules and the price
+fixtures shared by the C++ and TypeScript tests. `engine_service` reads it at startup from
+`protocol/instrument.json` relative to the working directory, or from
+`engine_service --instrument <path>`, and exits with an error if it is invalid.
 
 Prerequisites: Node 24 LTS (pinned in `.nvmrc` and `engines`) and npm 11.
 

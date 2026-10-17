@@ -1,0 +1,10 @@
+{
+  "name": "@ome/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Language-neutral protocol material: instrument config and test fixtures.",
+  "exports": {
+    "./instrument.json": "./instrument.json",
+    "./fixtures/*": "./fixtures/*"
+  }
+}
