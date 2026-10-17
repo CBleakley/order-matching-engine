@@ -1,0 +1,33 @@
+{
+  "name": "order-matching-engine",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "gateway",
+    "web"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:shared": "npm run build -w @ome/shared",
+    "lint": "npm run build:shared && eslint . && prettier --check .",
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces",
+    "test": "npm run build:shared && npm test --workspaces",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,16 @@
+# Build and dependency output
+build/
+**/dist/
+**/coverage/
+node_modules/
+package-lock.json
+
+# Phase 0 files not formatted by Prettier
+engine/
+cli/
+tests/
+bench/
+engine-service/
+*.md
+CMakePresets.json
+.github/

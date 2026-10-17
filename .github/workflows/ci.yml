@@ -43,3 +43,24 @@ jobs:
       # The test presets exclude tests labelled `slow`.
       - name: Test
         run: ctest --preset ${{ matrix.preset }} --parallel 4
+
+  node:
+    name: node / check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Lint (ESLint + Prettier), type-check and Vitest for every workspace.
+      - name: Check
+        run: npm run check

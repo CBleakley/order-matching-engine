@@ -6,12 +6,39 @@ A price-time priority order matching engine. See [Requirements.md](Requirements.
 
 ## Project layout
 
-| Directory         | Target   | Description                                                     |
-|-------------------|----------|-----------------------------------------------------------------|
-| `engine/include/` | `engine` | Header-only library: order book and domain types (no iostream). |
-| `cli/`            | `cli`    | Interactive command-line front end, links `engine`.             |
-| `tests/`          | `tests`  | GoogleTest suite (fetched via `FetchContent`), run with CTest.  |
-| `bench/`          | `bench`  | Placeholder for Phase 1 benchmarks.                             |
+| Directory         | Target           | Description                                                     |
+|-------------------|------------------|-----------------------------------------------------------------|
+| `engine/include/` | `engine`         | Header-only library: order book and domain types (no iostream). |
+| `cli/`            | `cli`            | Interactive command-line front end, links `engine`.             |
+| `tests/`          | `tests`          | GoogleTest suite (fetched via `FetchContent`), run with CTest.  |
+| `bench/`          | `bench`          | Placeholder for Phase 1 benchmarks.                             |
+| `engine-service/` | `engine_service` | Phase 1 engine service (placeholder executable for now).        |
+
+## Phase 1 layout
+
+Phase 1 adds a web UI on top of the engine. The new directories are:
+
+| Directory         | Contents                                                                                      |
+|-------------------|-----------------------------------------------------------------------------------------------|
+| `engine-service/` | C++ engine service: owns the order book, talks to the gateway over private TCP.               |
+| `protocol/`       | Language-neutral protocol material: internal protocol spec, byte fixtures, instrument config. |
+| `shared/`         | npm package `@ome/shared`: public WebSocket protocol schemas and price helpers.               |
+| `gateway/`        | npm package `@ome/gateway`: the internet-facing Node gateway.                                 |
+| `web/`            | npm package `@ome/web`: the React front end.                                                  |
+
+The TypeScript packages are npm workspaces sharing one root toolchain: TypeScript in `strict`
+mode (ESM, `tsconfig.base.json`), ESLint with typescript-eslint, Prettier and Vitest.
+
+Prerequisites: Node 24 LTS (pinned in `.nvmrc` and `engines`) and npm 11.
+
+```sh
+npm ci            # install from package-lock.json
+npm run check     # lint + typecheck + test, as run in CI
+```
+
+Individual scripts: `npm run build` (every package to its `dist/`), `npm run lint` (ESLint and
+`prettier --check`), `npm run typecheck`, `npm test` and `npm run format` (Prettier, in place).
+Each script builds `@ome/shared` first, since the other packages import its compiled output.
 
 ## Building
 
@@ -100,4 +127,4 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request,
 started by hand from the Actions tab. It builds and tests the `release` and `debug-sanitize`
 presets on both Ubuntu (GCC, ASan + UBSan) and Windows (MSVC, ASan), using the same
 `cmake --preset` / `ctest --preset` commands as a local build. Tests labelled `slow` are not
-run in CI.
+run in CI. A separate `node` job on Ubuntu runs `npm ci` and `npm run check`.

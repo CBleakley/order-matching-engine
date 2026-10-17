@@ -35,6 +35,7 @@ endfunction()
 add_subdirectory(engine)
 add_subdirectory(cli)
 add_subdirectory(bench)
+add_subdirectory(engine-service)
 
 enable_testing()
 add_subdirectory(tests)

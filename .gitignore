@@ -25,3 +25,8 @@ Thumbs.db
 .env
 
 CLAUDE.MD
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
