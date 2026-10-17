@@ -1,0 +1,4 @@
+# SnapshotEnd (engine -> gateway): type 0x83, 8-byte payload, 13-byte frame
+09 00 00 00             # length = 9
+83                      # type = 0x83
+ff ff ff ff ff ff ff ff # eventSeq (u64) = 18446744073709551615

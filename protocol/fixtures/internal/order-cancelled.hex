@@ -1,0 +1,8 @@
+# OrderCancelled (engine -> gateway): type 0x8a, 36-byte payload, 41-byte frame
+25 00 00 00             # length = 37
+8a                      # type = 0x8a
+05 00 00 00 00 00 00 00 # eventSeq (u64) = 5
+04 00 b3 03 6d 5c df 18 # ts (i64) = 1792252800000000004
+02 00 00 00 00 00 00 00 # orderId (u64) = 2
+42 42 0f 00             # traderId (u32) = 1000002
+19 00 00 00 00 00 00 00 # cancelledQty (i64) = 25

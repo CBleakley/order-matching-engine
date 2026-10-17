@@ -4,6 +4,9 @@ Language-neutral protocol material shared by the C++ engine service and the Type
 packages: the instrument configuration (P1-02) and the internal binary protocol spec and
 byte fixtures (P1-03).
 
+- [internal-protocol.md](internal-protocol.md): the gateway ↔ engine service binary protocol
+  (framing, every message, errors). Its byte fixtures are in `fixtures/internal/`.
+
 This directory is also the private npm workspace `@ome/protocol`, so TypeScript code imports
 these files as packages (`import raw from '@ome/protocol/instrument.json' with { type: 'json' }`)
 instead of reaching outside its own package with relative paths.

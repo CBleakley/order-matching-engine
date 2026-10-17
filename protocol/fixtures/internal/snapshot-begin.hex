@@ -1,0 +1,4 @@
+# SnapshotBegin (engine -> gateway): type 0x82, 8-byte payload, 13-byte frame
+09 00 00 00             # length = 9
+82                      # type = 0x82
+01 00 00 00 00 00 00 00 # eventSeq (u64) = 1

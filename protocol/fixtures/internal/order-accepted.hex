@@ -1,0 +1,11 @@
+# OrderAccepted (engine -> gateway): type 0x87, 53-byte payload, 58-byte frame
+36 00 00 00             # length = 54
+87                      # type = 0x87
+02 00 00 00 00 00 00 00 # eventSeq (u64) = 2
+01 00 b3 03 6d 5c df 18 # ts (i64) = 1792252800000000001
+ff ff ff ff ff ff ff ff # clientTag (u64) = 18446744073709551615
+01 00 00 00 00 00 00 00 # orderId (u64) = 1
+40 42 0f 00             # traderId (u32) = 1000000
+00                      # side (u8) = 0 (Buy)
+aa 37 00 00 00 00 00 00 # price (i64) = 14250
+10 27 00 00 00 00 00 00 # qty (i64) = 10000

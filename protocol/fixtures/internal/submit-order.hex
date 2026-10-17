@@ -1,0 +1,8 @@
+# SubmitOrder (gateway -> engine): type 0x02, 29-byte payload, 34-byte frame
+1e 00 00 00             # length = 30
+02                      # type = 0x02
+ff ff ff ff ff ff ff ff # clientTag (u64) = 18446744073709551615
+40 42 0f 00             # traderId (u32) = 1000000
+01                      # side (u8) = 1 (Sell)
+56 c8 ff ff ff ff ff ff # price (i64) = -14250
+ff ff ff ff ff ff ff 7f # qty (i64) = 9223372036854775807

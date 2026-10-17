@@ -1,0 +1,10 @@
+# OrderRested (engine -> gateway): type 0x89, 45-byte payload, 50-byte frame
+2e 00 00 00             # length = 46
+89                      # type = 0x89
+04 00 00 00 00 00 00 00 # eventSeq (u64) = 4
+03 00 b3 03 6d 5c df 18 # ts (i64) = 1792252800000000003
+01 00 00 00 00 00 00 00 # orderId (u64) = 1
+e7 03 00 00             # traderId (u32) = 999
+01                      # side (u8) = 1 (Sell)
+ff ff ff ff ff ff ff ff # price (i64) = -1
+ff ff ff ff ff ff ff 7f # remainingQty (i64) = 9223372036854775807

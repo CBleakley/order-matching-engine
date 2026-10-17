@@ -1,0 +1,10 @@
+# RestingOrder (engine -> gateway, snapshot only): type 0x84, 45-byte payload, 50-byte frame
+2e 00 00 00             # length = 46
+84                      # type = 0x84
+07 00 00 00 00 00 00 00 # orderId (u64) = 7
+41 42 0f 00             # traderId (u32) = 1000001
+00                      # side (u8) = 0 (Buy)
+aa 37 00 00 00 00 00 00 # price (i64) = 14250
+64 00 00 00 00 00 00 00 # originalQty (i64) = 100
+28 00 00 00 00 00 00 00 # remainingQty (i64) = 40
+ff ff ff ff ff ff ff ff # acceptedAt (i64) = -1

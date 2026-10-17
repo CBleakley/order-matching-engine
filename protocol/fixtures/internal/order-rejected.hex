@@ -1,0 +1,9 @@
+# OrderRejected (engine -> gateway): type 0x88, 37-byte payload, 42-byte frame
+26 00 00 00             # length = 38
+88                      # type = 0x88
+03 00 00 00 00 00 00 00 # eventSeq (u64) = 3
+02 00 b3 03 6d 5c df 18 # ts (i64) = 1792252800000000002
+4d 00 00 00 00 00 00 00 # clientTag (u64) = 77
+00 00 00 00 00 00 00 00 # orderId (u64) = 0
+40 42 0f 00             # traderId (u32) = 1000000
+10                      # reason (u8) = 16 (NotOwner)

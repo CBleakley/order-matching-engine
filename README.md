@@ -37,6 +37,12 @@ fixtures shared by the C++ and TypeScript tests. `engine_service` reads it at st
 `protocol/instrument.json` relative to the working directory, or from
 `engine_service --instrument <path>`, and exits with an error if it is invalid.
 
+The gateway and engine service talk over a private binary protocol specified in
+[protocol/internal-protocol.md](protocol/internal-protocol.md). Its C++ codec is in
+`engine-service/` (`InternalProtocol.h`, `FrameDecoder.h`) and its TypeScript codec in
+`gateway/src/internal/`; both are tested against the byte fixtures in
+`protocol/fixtures/internal/`.
+
 Prerequisites: Node 24 LTS (pinned in `.nvmrc` and `engines`) and npm 11.
 
 ```sh

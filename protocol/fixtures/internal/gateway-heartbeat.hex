@@ -1,0 +1,3 @@
+# Heartbeat (gateway -> engine): type 0x04, 0-byte payload, 5-byte frame
+01 00 00 00             # length = 1
+04                      # type = 0x04

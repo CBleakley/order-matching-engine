@@ -1,0 +1,6 @@
+# HelloAck (engine -> gateway): type 0x81, 18-byte payload, 23-byte frame
+13 00 00 00             # length = 19
+81                      # type = 0x81
+01 00                   # protocolVersion (u16) = 1
+ef cd ab 89 67 45 23 01 # engineInstanceId (u64) = 81985529216486895
+15 cd 0e 0b 6d 5c df 18 # serverTime (i64) = 1792252800123456789

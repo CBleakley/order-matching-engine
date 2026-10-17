@@ -11,7 +11,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# Header-only engine service library: instrument config and price conversion.
+# Header-only engine service library: instrument config, price conversion and
+# the internal protocol codec.
 # Shared by the engine_service executable and the tests.
 add_library(engine_service_lib INTERFACE)
 target_include_directories(engine_service_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

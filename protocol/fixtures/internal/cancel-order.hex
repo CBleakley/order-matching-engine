@@ -1,0 +1,6 @@
+# CancelOrder (gateway -> engine): type 0x03, 20-byte payload, 25-byte frame
+15 00 00 00             # length = 21
+03                      # type = 0x03
+2a 00 00 00 00 00 00 00 # clientTag (u64) = 42
+ff ff ff ff             # traderId (u32) = 4294967295
+ff ff ff ff ff ff ff ff # orderId (u64) = 18446744073709551615

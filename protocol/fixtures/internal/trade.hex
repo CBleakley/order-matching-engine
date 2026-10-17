@@ -1,0 +1,12 @@
+# Trade (engine -> gateway): type 0x86, 57-byte payload, 62-byte frame
+3a 00 00 00             # length = 58
+86                      # type = 0x86
+00 00 00 00 00 00 00 80 # eventSeq (u64) = 9223372036854775808
+ff ff ff ff ff ff ff 7f # ts (i64) = 9223372036854775807
+ff ff ff ff ff ff ff ff # makerOrderId (u64) = 18446744073709551615
+01 00 00 00 00 00 00 00 # takerOrderId (u64) = 1
+ff ff ff ff             # buyerTraderId (u32) = 4294967295
+00 00 00 00             # sellerTraderId (u32) = 0
+00 00 00 00 00 00 00 80 # price (i64) = -9223372036854775808
+01 00 00 00 00 00 00 00 # qty (i64) = 1
+00                      # aggressorSide (u8) = 0 (Buy)

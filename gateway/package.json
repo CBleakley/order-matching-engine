@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ome/protocol": "*",
     "@ome/shared": "*"
   }
 }

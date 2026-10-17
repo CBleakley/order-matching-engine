@@ -1,0 +1,12 @@
+# TradeReplay (engine -> gateway, snapshot only): type 0x85, 57-byte payload, 62-byte frame
+3a 00 00 00             # length = 58
+85                      # type = 0x85
+0c 00 00 00 00 00 00 00 # eventSeq (u64) = 12
+00 00 b3 03 6d 5c df 18 # ts (i64) = 1792252800000000000
+07 00 00 00 00 00 00 00 # makerOrderId (u64) = 7
+09 00 00 00 00 00 00 00 # takerOrderId (u64) = 9
+41 42 0f 00             # buyerTraderId (u32) = 1000001
+03 00 00 00             # sellerTraderId (u32) = 3
+ab 37 00 00 00 00 00 00 # price (i64) = 14251
+3c 00 00 00 00 00 00 00 # qty (i64) = 60
+01                      # aggressorSide (u8) = 1 (Sell)

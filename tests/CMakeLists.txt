@@ -35,6 +35,8 @@ add_executable(tests
     differential_test.cpp
     instrument_test.cpp
     price_test.cpp
+    internal_protocol_test.cpp
+    frame_decoder_test.cpp
 )
 target_link_libraries(tests PRIVATE engine cli_lib engine_service_lib GTest::gtest_main)
 set_project_warnings(tests)
