@@ -131,8 +131,17 @@ valid between `SnapshotBegin` and `SnapshotEnd`.
 1. The gateway connects and sends `Hello` with its `protocolVersion`.
 2. If the version equals the engine service's, it replies `HelloAck` followed by the snapshot.
    On a mismatch, or if any other frame arrives before `Hello`, it closes the connection.
-3. Both sides then exchange commands and events, and send `Heartbeat` when otherwise idle.
-   Interval and timeout values are set by the engine service implementation (P1-04).
+3. Both sides then exchange commands and events.
+
+- **Heartbeats**: each side sends `Heartbeat` every second. The engine service closes the
+  connection if it receives nothing from the gateway for 5 seconds (before or after the
+  handshake); the gateway should do the same.
+- **One gateway at a time**: while a gateway is connected, the engine service accepts and
+  immediately closes any further connection. After a disconnect it accepts a new one.
+- **Slow gateway**: if the gateway stops reading and the engine service has more than 8 MiB of
+  output queued for it, the engine service drops the connection rather than buffer without bound.
+- Events that happen while no gateway is connected are not queued; `eventSeq` still advances,
+  and a reconnecting gateway catches up from the snapshot.
 
 ## Protocol errors
 

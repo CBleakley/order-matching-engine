@@ -12,7 +12,7 @@ A price-time priority order matching engine. See [Requirements.md](Requirements.
 | `cli/`            | `cli`            | Interactive command-line front end, links `engine`.             |
 | `tests/`          | `tests`          | GoogleTest suite (fetched via `FetchContent`), run with CTest.  |
 | `bench/`          | `bench`          | Placeholder for Phase 1 benchmarks.                             |
-| `engine-service/` | `engine_service` | Phase 1 engine service; loads the instrument config for now.    |
+| `engine-service/` | `engine_service` | Engine service: order book plus TCP server for the gateway.     |
 
 ## Phase 1 layout
 
@@ -78,6 +78,34 @@ Available presets (build output goes to `build/<preset>/`):
 
 All project targets compile with warnings as errors (`-Wall -Wextra -Wpedantic -Werror`,
 or `/W4 /WX /permissive-` on MSVC).
+
+## Running the engine service
+
+`engine_service` hosts the order book and serves one gateway over TCP using the internal
+protocol. Run it from the repository root so it finds `protocol/instrument.json`:
+
+```sh
+./build/debug/engine-service/engine_service      # engine_service.exe on Windows
+./build/debug/engine-service/engine_service --port 7002 --log-level debug
+```
+
+| Option                | Default                    | Description                                    |
+|-----------------------|----------------------------|------------------------------------------------|
+| `--bind <address>`    | `127.0.0.1`                | Address to listen on. Keep it private.         |
+| `--port <port>`       | `7001`                     | Port to listen on (`0` picks a free port).     |
+| `--instrument <path>` | `protocol/instrument.json` | Instrument config to load at startup.          |
+| `--log-level <level>` | `info`                     | `error`, `warn`, `info` or `debug`.            |
+
+It logs to stderr: one line per connection, disconnection or protocol error, never per order.
+Everything (socket I/O, timers and the order book) runs on a single thread with one Asio
+`io_context`, so the book needs no locks. Only one gateway is served at a time; see
+[protocol/internal-protocol.md](protocol/internal-protocol.md) for the handshake, heartbeats
+and limits. Ctrl+C or SIGTERM shuts it down cleanly.
+
+The code is split so that most of it is testable without sockets: `EngineCore.h` turns
+decoded commands into order book calls and protocol events, `GatewaySession.h` is the
+per-connection protocol state machine (bytes in, bytes out), and `TcpServer.h` only moves
+bytes between the socket and the session.
 
 ## Running the CLI
 

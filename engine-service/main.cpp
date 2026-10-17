@@ -1,44 +1,80 @@
-// Engine service entry point. For now it only loads and validates the
-// instrument config; the event loop and gateway connection arrive in P1-04.
-#include <filesystem>
+// Engine service entry point: hosts the order book on one thread and serves
+// one gateway over TCP using the internal protocol.
+#include <csignal>
+#include <cstdint>
+#include <exception>
 #include <iostream>
+#include <random>
+#include <string>
 #include <string_view>
+#include <variant>
+#include <vector>
 
+#include <asio.hpp>
+
+#include "Clock.h"
+#include "EngineCore.h"
 #include "Instrument.h"
+#include "Logger.h"
+#include "Options.h"
 #include "Price.h"
+#include "TcpServer.h"
 
 namespace {
 
-constexpr std::string_view kUsage = "usage: engine_service [--instrument <path>]\n";
+using namespace engine_service;
+
+// Random per process start, so the gateway can tell a restarted engine
+// service (whose order IDs and eventSeq start again) from a reconnect.
+std::uint64_t randomInstanceId() {
+    std::random_device device;
+    return (static_cast<std::uint64_t>(device()) << 32) ^ device();
+}
 
 }  // namespace
 
 int main(int argc, char* argv[]) {
-    std::filesystem::path instrumentPath = "protocol/instrument.json";
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view arg = argv[i];
-        if (arg == "--instrument" && i + 1 < argc) {
-            instrumentPath = argv[++i];
-        } else {
-            std::cerr << kUsage;
-            return 2;
-        }
+    const std::vector<std::string_view> args(argv + 1, argv + argc);
+    const auto parsed = parseOptions(args);
+    if (const auto* error = std::get_if<std::string>(&parsed)) {
+        std::cerr << "engine_service: " << *error << '\n' << kUsage;
+        return 2;
+    }
+    const Options& options = std::get<Options>(parsed);
+    if (options.help) {
+        std::cout << kUsage;
+        return 0;
     }
 
+    Logger log(options.logLevel, std::cerr);
     try {
-        const engine_service::InstrumentConfig instrument =
-            engine_service::loadInstrumentConfig(instrumentPath);
-        std::cout << "Instrument " << instrument.symbol << " (" << instrument.name
-                  << "): tick " << instrument.tickSize << ", prices "
-                  << engine_service::ticksToDecimalString(instrument.minPriceTicks, instrument)
-                  << " to "
-                  << engine_service::ticksToDecimalString(instrument.maxPriceTicks, instrument)
-                  << ", max order qty " << instrument.maxOrderQty << ", reference "
-                  << engine_service::ticksToDecimalString(instrument.referencePriceTicks,
-                                                          instrument)
-                  << '\n';
-    } catch (const engine_service::InstrumentConfigError& e) {
-        std::cerr << e.what() << '\n';
+        const InstrumentConfig instrument = loadInstrumentConfig(options.instrument);
+        log.info("instrument " + instrument.symbol + " (" + instrument.name + "), tick " +
+                 instrument.tickSize + ", reference price " +
+                 ticksToDecimalString(instrument.referencePriceTicks, instrument));
+
+        ServerConfig config;
+        config.address          = options.bind;
+        config.port             = options.port;
+        config.engineInstanceId = randomInstanceId();
+
+        asio::io_context io;
+        SystemClock      clock;
+        EngineCore       core(clock);
+        TcpServer        server(io, core, clock, log, config);
+        server.start();
+
+        asio::signal_set signals(io, SIGINT, SIGTERM);
+        signals.async_wait([&](std::error_code ec, int signal) {
+            if (ec) return;
+            log.info("received signal " + std::to_string(signal) + ", shutting down");
+            server.stop();
+        });
+
+        io.run();
+        log.info("stopped");
+    } catch (const std::exception& e) {
+        log.error(e.what());
         return 1;
     }
     return 0;

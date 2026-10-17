@@ -37,8 +37,12 @@ add_executable(tests
     price_test.cpp
     internal_protocol_test.cpp
     frame_decoder_test.cpp
+    engine_core_test.cpp
+    gateway_session_test.cpp
+    tcp_server_test.cpp
+    options_test.cpp
 )
-target_link_libraries(tests PRIVATE engine cli_lib engine_service_lib GTest::gtest_main)
+target_link_libraries(tests PRIVATE engine cli_lib engine_service_net GTest::gtest_main)
 set_project_warnings(tests)
 target_compile_definitions(tests PRIVATE
     GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden"
