@@ -1,8 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { App } from '../src/App.js';
 import { PALETTE_STORAGE_KEY } from '../src/settings/palette.js';
+import { createStore, StoreContext } from '../src/state/store.js';
+import { snapshot } from './messages.js';
 
 afterEach(() => {
   window.localStorage.clear();
@@ -59,5 +61,27 @@ describe('App shell', () => {
       'aria-pressed',
       'true',
     );
+  });
+
+  it('shows the connection status in the header pill', () => {
+    const store = createStore();
+    render(
+      <StoreContext value={store}>
+        <App />
+      </StoreContext>,
+    );
+    const pill = within(screen.getByRole('banner')).getByRole('status');
+    expect(pill).toHaveTextContent('OFFLINE');
+
+    act(() => {
+      store.dispatch({ type: 'reconnecting', attempt: 3 });
+    });
+    expect(pill).toHaveTextContent('RECONNECTING (3)');
+
+    act(() => {
+      store.dispatch({ type: 'server', message: snapshot() });
+    });
+    expect(pill).toHaveTextContent('LIVE');
+    expect(pill).toHaveClass('pill--live');
   });
 });

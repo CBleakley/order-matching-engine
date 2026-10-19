@@ -288,6 +288,14 @@ a {
   background: var(--color-text-4);
 }
 
+.pill--live .pill__dot {
+  background: var(--color-up);
+}
+
+.pill--reconnecting .pill__dot {
+  background: var(--color-accent);
+}
+
 .pill__label {
   font-size: var(--font-size-small);
   font-weight: 600;

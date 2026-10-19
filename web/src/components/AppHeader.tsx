@@ -1,6 +1,10 @@
 import { INSTRUMENT } from '@ome/shared';
 
 import { usePalette } from '../settings/palette.js';
+import { type AppState, connectionLabel } from '../state/app-state.js';
+import { useAppState } from '../state/store.js';
+
+const selectConnection = (state: AppState) => state.connection;
 
 // Values arrive with live market data (P1-18); until then each shows a dash.
 const PLACEHOLDER = '—';
@@ -10,6 +14,7 @@ const STATS = ['Day open', 'Day high', 'Day low', 'Your open orders'] as const;
 export function AppHeader() {
   const [palette, setPalette] = usePalette();
   const colourBlind = palette === 'blue-orange';
+  const connection = useAppState(selectConnection);
 
   return (
     <header className="app-header">
@@ -56,9 +61,9 @@ export function AppHeader() {
       </dl>
 
       <div className="header-actions">
-        <div className="pill" role="status">
+        <div className={`pill pill--${connection.kind}`} role="status">
           <span className="pill__dot" aria-hidden="true" />
-          <span className="pill__label">CONNECTING</span>
+          <span className="pill__label">{connectionLabel(connection)}</span>
         </div>
         <button
           type="button"
