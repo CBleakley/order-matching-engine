@@ -1,0 +1,51 @@
+/* Design tokens from the design canvas ("Trading dashboard" artboard). */
+:root {
+  /* Surfaces */
+  --color-bg: #0a0c11;
+  --color-panel: #11141b;
+  --color-inset: #0b0e14;
+  --color-well: #0d1016;
+  --color-tile: #1a2033;
+  --color-border: #1e2330;
+  --color-border-strong: #262c3a;
+  --color-row-hover: #151925;
+
+  /* Text, brightest to dimmest */
+  --color-text: #e7eaf0;
+  --color-text-2: #c4cad6;
+  --color-text-3: #a3aaba;
+  --color-text-4: #8e96a8;
+
+  /* Accents and states */
+  --color-accent: #8fa8ff;
+  --color-focus: #7c9cff;
+  --color-error: #ff8c9c;
+  --color-on-accent: #0a0c11;
+
+  /* Price direction: green / red by default; see [data-palette] below. */
+  --color-up: #26c281;
+  --color-down: #f2546b;
+
+  /* Shape */
+  --radius-panel: 14px;
+  --radius-control: 10px;
+  --radius-pill: 999px;
+  --touch-min: 44px;
+
+  /* Spacing */
+  --gap-section: 16px;
+  --panel-padding: 20px;
+
+  /* Type */
+  --font-sans: 'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --font-size-base: 14px;
+  --font-size-small: 12px;
+  --font-size-label: 11px;
+}
+
+/* Alternative up/down palette for colour-blind visitors (user setting). */
+:root[data-palette='blue-orange'] {
+  --color-up: #4c9aff;
+  --color-down: #ff9f43;
+}

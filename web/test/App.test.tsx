@@ -1,0 +1,63 @@
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { App } from '../src/App.js';
+import { PALETTE_STORAGE_KEY } from '../src/settings/palette.js';
+
+afterEach(() => {
+  window.localStorage.clear();
+  delete document.documentElement.dataset['palette'];
+});
+
+describe('App shell', () => {
+  it('renders the header, main landmark and every placeholder panel', () => {
+    render(<App />);
+
+    const header = screen.getByRole('banner');
+    expect(within(header).getByRole('heading', { level: 1, name: 'NOVA' })).toBeInTheDocument();
+    expect(within(header).getByText('Nova Dynamics · Practice market')).toBeInTheDocument();
+
+    const main = screen.getByRole('main');
+    for (const name of [
+      'Price chart',
+      'Place order',
+      'Your pending orders',
+      'Your trade history',
+    ]) {
+      expect(within(main).getByRole('region', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('links past the header to the main content', () => {
+    render(<App />);
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute(
+      'href',
+      '#main',
+    );
+  });
+
+  it('switches to the colour-blind palette and remembers it', () => {
+    render(<App />);
+    const toggle = screen.getByRole('button', { name: 'Colour-blind palette' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(document.documentElement.dataset['palette']).toBe('blue-orange');
+    expect(window.localStorage.getItem(PALETTE_STORAGE_KEY)).toBe('blue-orange');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(document.documentElement.dataset['palette']).toBe('green-red');
+    expect(window.localStorage.getItem(PALETTE_STORAGE_KEY)).toBe('green-red');
+  });
+
+  it('starts with the saved palette', () => {
+    window.localStorage.setItem(PALETTE_STORAGE_KEY, 'blue-orange');
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Colour-blind palette' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+});
