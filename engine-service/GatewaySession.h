@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -20,7 +21,8 @@
 // bytes in, bytes out. TcpServer moves bytes between it and the socket.
 //
 // The first frame must be a Hello with our protocol version; the session then
-// replies HelloAck and attaches itself to the core as its event output. Any
+// replies HelloAck, sends the core's snapshot, and attaches itself to the core
+// as its event output. Any
 // protocol violation closes the session: it records a reason, detaches, and
 // ignores further input and output.
 
@@ -28,7 +30,8 @@ namespace engine_service {
 
 struct SessionConfig {
     // Encoded bytes the session may hold (queued plus being written) before
-    // it gives up on a gateway that is not reading.
+    // it gives up on a gateway that is not reading. The connect-time snapshot
+    // is allowed on top of this until it has been written.
     std::size_t   maxOutboundBytes = std::size_t{8} << 20;
     std::uint64_t engineInstanceId = 0;
 };
@@ -72,7 +75,8 @@ public:
     void send(const protocol::EngineMessage& message) override {
         if (closed()) return;
         protocol::encode(message, outbound_);
-        if (outbound_.size() + inFlightBytes_ > config_.maxOutboundBytes) {
+        if (!writingSnapshot_ &&
+            outbound_.size() + inFlightBytes_ > config_.maxOutboundBytes + snapshotAllowance_) {
             close("gateway is not reading: outbound buffer over " +
                   std::to_string(config_.maxOutboundBytes) + " bytes");
             return;
@@ -94,7 +98,9 @@ public:
     }
 
     void writeComplete(std::size_t bytes) noexcept {
-        inFlightBytes_ -= bytes < inFlightBytes_ ? bytes : inFlightBytes_;
+        inFlightBytes_ -= std::min(bytes, inFlightBytes_);
+        // The snapshot is written first, so these bytes use up its allowance.
+        snapshotAllowance_ -= std::min(bytes, snapshotAllowance_);
     }
 
     // --- State ---
@@ -147,9 +153,22 @@ private:
             return;
         }
         handshakeComplete_ = true;
+
+        // HelloAck, the snapshot and attaching to the core all happen in this
+        // one call on the core's thread, so no live event can fall between
+        // the snapshot and the first live event, or be sent twice.
+        //
+        // A snapshot holding a day of trades can far exceed the outbound
+        // limit, which exists to catch a gateway that stops reading. So the
+        // snapshot is exempt: its size is added to the limit until it has
+        // been written.
+        writingSnapshot_ = true;
         send(protocol::HelloAck{.protocolVersion  = protocol::kProtocolVersion,
                                 .engineInstanceId = config_.engineInstanceId,
                                 .serverTime       = clock_.now()});
+        core_.writeSnapshot(*this);
+        writingSnapshot_   = false;
+        snapshotAllowance_ = outbound_.size();
         core_.setOutput(this);
     }
 
@@ -169,6 +188,8 @@ private:
     protocol::FrameDecoder<protocol::GatewayMessage> decoder_;
     std::vector<std::uint8_t>                         outbound_;
     std::size_t                                       inFlightBytes_     = 0;
+    std::size_t                                       snapshotAllowance_ = 0;
+    bool                                              writingSnapshot_   = false;
     bool                                              handshakeComplete_ = false;
     std::optional<std::string>                        closeReason_;
 };

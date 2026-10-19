@@ -3,6 +3,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <future>
 #include <optional>
 #include <sstream>
 #include <thread>
@@ -48,11 +49,19 @@ public:
         asio::write(socket_, asio::buffer(bytes));
     }
 
-    void handshake() {
+    // Sends Hello and reads HelloAck and the snapshot. Returns the snapshot,
+    // from SnapshotBegin to SnapshotEnd, or an empty vector on failure.
+    std::vector<wire::EngineMessage> handshake(std::chrono::milliseconds timeout = 3s) {
         send(wire::Hello{.protocolVersion = wire::kProtocolVersion});
-        const auto ack = receive();
-        ASSERT_TRUE(ack.has_value());
-        ASSERT_TRUE(std::holds_alternative<wire::HelloAck>(*ack));
+        const auto ack = receive(timeout);
+        if (!ack || !std::holds_alternative<wire::HelloAck>(*ack)) return {};
+        std::vector<wire::EngineMessage> snapshot;
+        for (;;) {
+            auto message = receive();
+            if (!message) return {};
+            snapshot.push_back(std::move(*message));
+            if (std::holds_alternative<wire::SnapshotEnd>(snapshot.back())) return snapshot;
+        }
     }
 
     // The next message other than a heartbeat, or nullopt if the connection
@@ -173,7 +182,11 @@ protected:
 
     engine_service::ServerConfig                    config;
     engine_service::ManualClock                     clock{kT0};
-    engine_service::EngineCore                      core{clock};
+    engine_service::EngineCore                      core{
+        clock, engine_service::CoreConfig{.minPriceTicks  = 1,
+                                          .maxPriceTicks  = 100'000,
+                                          .maxOrderQty    = 10'000,
+                                          .tradeRetention = std::chrono::hours(24)}};
     std::ostringstream                              logText;
     engine_service::Logger                          log{engine_service::LogLevel::Debug, logText};
     asio::io_context                                io;
@@ -196,6 +209,11 @@ TEST_F(TcpServerTest, HandshakeAndCrossingOrders) {
     EXPECT_EQ(*ack, wire::EngineMessage(wire::HelloAck{.protocolVersion  = wire::kProtocolVersion,
                                                        .engineInstanceId = kInstanceId,
                                                        .serverTime       = kT0}));
+    const auto begin = client.receive();
+    const auto end   = client.receive();
+    ASSERT_TRUE(begin.has_value() && end.has_value());
+    EXPECT_EQ(*begin, wire::EngineMessage(wire::SnapshotBegin{.eventSeq = 1}));
+    EXPECT_EQ(*end, wire::EngineMessage(wire::SnapshotEnd{.eventSeq = 1}));
 
     client.send(order(1, 1'000'000, Side::Sell, 14'250, 10));
     client.send(order(2, 1'000'001, Side::Buy, 14'300, 25));
@@ -240,7 +258,7 @@ TEST_F(TcpServerTest, CommandBeforeHelloClosesTheConnection) {
 TEST_F(TcpServerTest, MalformedFrameClosesTheConnection) {
     startServer();
     TestClient client(port());
-    client.handshake();
+    ASSERT_FALSE(client.handshake().empty());
     client.sendRaw({0xFF, 0xFF, 0xFF, 0xFF});
     EXPECT_TRUE(client.waitForClose());
 }
@@ -248,7 +266,7 @@ TEST_F(TcpServerTest, MalformedFrameClosesTheConnection) {
 TEST_F(TcpServerTest, SecondConnectionIsRefusedWhileOneIsActive) {
     startServer();
     TestClient first(port());
-    first.handshake();
+    ASSERT_FALSE(first.handshake().empty());
 
     TestClient second(port());
     EXPECT_TRUE(second.waitForClose());
@@ -263,7 +281,7 @@ TEST_F(TcpServerTest, SecondConnectionIsRefusedWhileOneIsActive) {
 TEST_F(TcpServerTest, ServerSendsHeartbeatsAndAHeartbeatingClientStaysConnected) {
     startServer();
     TestClient client(port());
-    client.handshake();
+    ASSERT_FALSE(client.handshake().empty());
     EXPECT_TRUE(client.stayAlive(1000ms, 50ms));  // well past the 400 ms idle timeout
     EXPECT_GE(client.heartbeats(), 5);
 }
@@ -271,7 +289,7 @@ TEST_F(TcpServerTest, ServerSendsHeartbeatsAndAHeartbeatingClientStaysConnected)
 TEST_F(TcpServerTest, SilentClientIsDroppedAfterTheIdleTimeout) {
     startServer();
     TestClient client(port());
-    client.handshake();
+    ASSERT_FALSE(client.handshake().empty());
     const auto start = std::chrono::steady_clock::now();
     EXPECT_TRUE(client.waitForClose(3s));
     EXPECT_GE(std::chrono::steady_clock::now() - start, 300ms);
@@ -281,27 +299,45 @@ TEST_F(TcpServerTest, ReconnectAfterDisconnect) {
     startServer();
     {
         TestClient client(port());
-        client.handshake();
+        ASSERT_FALSE(client.handshake().empty());
         client.send(order(1, 1'000'000, Side::Buy, 100, 1));  // eventSeq 1 and 2
         ASSERT_TRUE(client.receive().has_value());
         ASSERT_TRUE(client.receive().has_value());
     }  // client disconnects
 
+    // An order arrives while no gateway is connected (eventSeq 3 and 4). The
+    // core belongs to the server thread, so submit it there.
+    std::promise<void> submitted;
+    asio::post(io, [&] {
+        core.submit(order(9, 1'000'001, Side::Sell, 200, 5));
+        submitted.set_value();
+    });
+    submitted.get_future().wait();
+
     // The server notices the disconnect asynchronously; retry until it
     // accepts the new gateway rather than refusing it as a second one.
     for (int attempt = 0; attempt < 50; ++attempt) {
         TestClient client(port());
-        client.send(wire::Hello{.protocolVersion = wire::kProtocolVersion});
-        const auto ack = client.receive(500ms);
-        if (!ack) continue;
-        ASSERT_TRUE(std::holds_alternative<wire::HelloAck>(*ack));
+        const auto snapshot = client.handshake(500ms);
+        if (snapshot.empty()) continue;
+
+        EXPECT_EQ(snapshot, (std::vector<wire::EngineMessage>{
+            wire::SnapshotBegin{.eventSeq = 5},
+            wire::RestingOrder{.orderId = 1, .traderId = 1'000'000, .side = Side::Buy,
+                               .price = 100, .originalQty = 1, .remainingQty = 1,
+                               .acceptedAt = kT0},
+            wire::RestingOrder{.orderId = 2, .traderId = 1'000'001, .side = Side::Sell,
+                               .price = 200, .originalQty = 5, .remainingQty = 5,
+                               .acceptedAt = kT0},
+            wire::SnapshotEnd{.eventSeq = 5},
+        }));
 
         client.send(order(2, 1'000'000, Side::Buy, 100, 1));
         const auto accepted = client.receive();
         ASSERT_TRUE(accepted.has_value());
-        EXPECT_EQ(std::get<wire::OrderAccepted>(*accepted).eventSeq, 3u)
-            << "eventSeq continues across connections";
-        EXPECT_EQ(std::get<wire::OrderAccepted>(*accepted).orderId, 2u);
+        EXPECT_EQ(std::get<wire::OrderAccepted>(*accepted).eventSeq, 5u)
+            << "live events continue from the snapshot's eventSeq";
+        EXPECT_EQ(std::get<wire::OrderAccepted>(*accepted).orderId, 3u);
         return;
     }
     FAIL() << "the server never accepted a new gateway";

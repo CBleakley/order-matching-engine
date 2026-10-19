@@ -53,6 +53,9 @@ int main(int argc, char* argv[]) {
                  instrument.tickSize + ", reference price " +
                  ticksToDecimalString(instrument.referencePriceTicks, instrument));
 
+        log.info("retaining trades for " + std::to_string(options.retention.count()) +
+                 " s for the reconnect snapshot");
+
         ServerConfig config;
         config.address          = options.bind;
         config.port             = options.port;
@@ -60,7 +63,7 @@ int main(int argc, char* argv[]) {
 
         asio::io_context io;
         SystemClock      clock;
-        EngineCore       core(clock);
+        EngineCore       core(clock, CoreConfig::forInstrument(instrument, options.retention));
         TcpServer        server(io, core, clock, log, config);
         server.start();
 

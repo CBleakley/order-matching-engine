@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -25,7 +26,15 @@ TEST(Options, Defaults) {
     EXPECT_EQ(options.port, 7001);
     EXPECT_EQ(options.instrument, "protocol/instrument.json");
     EXPECT_EQ(options.logLevel, LogLevel::Info);
+    EXPECT_EQ(options.retention, std::chrono::hours(24));
     EXPECT_FALSE(options.help);
+}
+
+TEST(Options, Retention) {
+    EXPECT_EQ(std::get<Options>(parse({"--retention", "30s"})).retention, std::chrono::seconds(30));
+    EXPECT_EQ(std::get<Options>(parse({"--retention", "90m"})).retention, std::chrono::minutes(90));
+    EXPECT_EQ(std::get<Options>(parse({"--retention", "1h"})).retention, std::chrono::hours(1));
+    EXPECT_EQ(std::get<Options>(parse({"--retention", "48h"})).retention, std::chrono::hours(48));
 }
 
 TEST(Options, EveryFlag) {
@@ -58,6 +67,16 @@ TEST(Options, Errors) {
         {"--port", ""},
         {"--bind", ""},
         {"--log-level", "verbose"},
+        {"--retention"},
+        {"--retention", ""},
+        {"--retention", "24"},
+        {"--retention", "h"},
+        {"--retention", "0h"},
+        {"--retention", "-1h"},
+        {"--retention", "+1h"},
+        {"--retention", "1d"},
+        {"--retention", "1.5h"},
+        {"--retention", "99999999999h"},
         {"--threads", "4"},
         {"7001"},
     };

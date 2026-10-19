@@ -89,12 +89,18 @@ protocol. Run it from the repository root so it finds `protocol/instrument.json`
 ./build/debug/engine-service/engine_service --port 7002 --log-level debug
 ```
 
-| Option                | Default                    | Description                                    |
-|-----------------------|----------------------------|------------------------------------------------|
-| `--bind <address>`    | `127.0.0.1`                | Address to listen on. Keep it private.         |
-| `--port <port>`       | `7001`                     | Port to listen on (`0` picks a free port).     |
-| `--instrument <path>` | `protocol/instrument.json` | Instrument config to load at startup.          |
-| `--log-level <level>` | `info`                     | `error`, `warn`, `info` or `debug`.            |
+| Option                | Default                    | Description                                         |
+|-----------------------|----------------------------|-----------------------------------------------------|
+| `--bind <address>`    | `127.0.0.1`                | Address to listen on. Keep it private.              |
+| `--port <port>`       | `7001`                     | Port to listen on (`0` picks a free port).          |
+| `--instrument <path>` | `protocol/instrument.json` | Instrument config to load at startup.               |
+| `--log-level <level>` | `info`                     | `error`, `warn`, `info` or `debug`.                 |
+| `--retention <time>`  | `24h`                      | How long to keep trades for replay (`s`, `m`, `h`). |
+
+The engine service owns order identity: it assigns every order ID, checks prices and quantities
+against the instrument's limits, and only lets an order's owner cancel it. When a gateway
+connects (or reconnects), it first receives a snapshot of every resting order and the trades
+from the retention period, so it can rebuild its state.
 
 It logs to stderr: one line per connection, disconnection or protocol error, never per order.
 Everything (socket I/O, timers and the order book) runs on a single thread with one Asio

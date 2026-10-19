@@ -73,10 +73,13 @@ Timestamps are `i64` nanoseconds since 1970-01-01T00:00:00Z.
 
 - **`Hello`** must be the first frame on a connection.
 - **`SubmitOrder`**: a new limit order. It carries no order ID: the engine service assigns one
-  and returns it in `OrderAccepted`. `clientTag` is an opaque value chosen by the gateway and
+  and returns it in `OrderAccepted`. IDs start at 1 and increase by one per accepted order;
+  rejected submits do not use one. The engine service rejects a price outside the instrument's
+  limits with `PriceOutOfRange`, and a quantity outside them with `QtyOutOfRange`. `clientTag` is an opaque value chosen by the gateway and
   echoed in `OrderAccepted` / `OrderRejected` so it can match replies to requests.
 - **`CancelOrder`**: cancel a resting order on behalf of `traderId`. `clientTag` is echoed in
-  an `OrderRejected` if the cancel fails.
+  an `OrderRejected` if the cancel fails: `NotOwner` if another trader owns the order (it is
+  left untouched), or `UnknownOrderId` if it is not resting.
 - **`Heartbeat`**: keeps the connection alive when there is nothing else to send.
 
 ## Engine service → gateway
@@ -116,9 +119,11 @@ After `HelloAck`, the engine service sends the current state before any live eve
 
 1. `SnapshotBegin`
 2. one `RestingOrder` per resting order: `originalQty` as submitted, `remainingQty` still open,
-   `acceptedAt` the time it was accepted;
+   `acceptedAt` the time it was accepted. Bids come first, then asks; each side is in
+   price-time order (best price first, then oldest first within a price);
 3. one `TradeReplay` per retained recent trade, oldest first, each keeping the trade's original
-   `eventSeq` and `ts`;
+   `eventSeq` and `ts`. The engine service retains trades for a configurable period
+   (`--retention`, default 24 hours); older trades are not replayed;
 4. `SnapshotEnd`.
 
 `SnapshotBegin` and `SnapshotEnd` both carry the `eventSeq` of the **first live event that will
@@ -140,6 +145,8 @@ valid between `SnapshotBegin` and `SnapshotEnd`.
   immediately closes any further connection. After a disconnect it accepts a new one.
 - **Slow gateway**: if the gateway stops reading and the engine service has more than 8 MiB of
   output queued for it, the engine service drops the connection rather than buffer without bound.
+  The connect-time snapshot, which can be larger, is allowed on top of the limit until it has
+  been written.
 - Events that happen while no gateway is connected are not queued; `eventSeq` still advances,
   and a reconnecting gateway catches up from the snapshot.
 
