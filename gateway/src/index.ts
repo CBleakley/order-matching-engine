@@ -1,6 +1,11 @@
-// Placeholder. The gateway server arrives in P1-07; importing @ome/shared here
-// proves workspace resolution and build order.
-import { SHARED_PACKAGE } from '@ome/shared';
-
-export const GATEWAY_PACKAGE = '@ome/gateway';
-export const GATEWAY_DEPENDENCIES = [SHARED_PACKAGE] as const;
+// Public API of the gateway package. src/main.ts is the executable entry point.
+export { ConfigError, loadConfig, type GatewayConfig, type LogLevel } from './config.js';
+export { backoffDelay, type BackoffOptions } from './engine/backoff.js';
+export * from './engine/engine-client.js';
+export { createLogger, REDACTED_PATHS, type Logger } from './logger.js';
+export {
+  buildServer,
+  type GatewayServer,
+  type HealthResponse,
+  type ServerOptions,
+} from './server.js';

@@ -148,6 +148,48 @@ Randomness comes from `std::mt19937_64` with hand-written samplers (no standard
 distributions), so the same seed, config and clock give the same event stream. `--no-sim`
 turns the simulator off for tests that need full control of the book.
 
+## Running the gateway
+
+The gateway (`gateway/`) is the internet-facing Node process. It keeps a connection to the
+engine service open and serves HTTP. Build it, then start it with at least `SESSION_SECRET` set:
+
+```powershell
+npm run build
+$env:SESSION_SECRET = '<at least 32 random characters>'
+npm start -w @ome/gateway
+```
+
+| Variable                      | Default     | Description                                                     |
+|-------------------------------|-------------|-----------------------------------------------------------------|
+| `SESSION_SECRET`              | (required)  | Signs session tokens. At least 32 characters.                   |
+| `PORT`                        | `8080`      | HTTP port.                                                      |
+| `HOST`                        | `0.0.0.0`   | HTTP bind address.                                              |
+| `ENGINE_HOST`                 | `127.0.0.1` | Engine service address.                                         |
+| `ENGINE_PORT`                 | `7001`      | Engine service port.                                            |
+| `LOG_LEVEL`                   | `info`      | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. |
+| `MAX_SESSIONS`                | `1000`      | Limit on concurrent sessions (enforced by later tickets).       |
+| `MAX_OPEN_ORDERS_PER_SESSION` | `50`        | Limit on resting orders per session (later tickets).            |
+| `MAX_ORDERS_PER_SECOND`       | `10`        | Per-session order rate limit (later tickets).                   |
+| `MAX_WS_MESSAGE_BYTES`        | `4096`      | Largest accepted WebSocket message (later tickets).             |
+
+Invalid configuration stops it at startup with a list of the bad variables (never their values).
+It logs JSON lines to stdout (pino), with secret-bearing fields redacted.
+
+`GET /healthz` returns `200 {"status":"ok","engine":{"connected":true,"engineInstanceId":"…"}}`
+while the engine connection is up, and `503` with `"status":"unavailable"` otherwise.
+
+`EngineClient` (`gateway/src/engine/engine-client.ts`) owns the engine connection. It sends
+`Hello`, consumes the snapshot, then streams live events, with heartbeats both ways. It drops
+the connection on any protocol violation, an `eventSeq` gap, or 5 seconds of silence, then
+reconnects with exponential backoff and jitter, starting each time from a fresh snapshot. A
+changed `engineInstanceId` raises `engineReset`. `submit` and `cancel` resolve with the
+engine's reply (`OrderAccepted`, `OrderCancelled` or `OrderRejected`). They reject if the
+engine does not answer within 5 seconds or the connection drops first.
+
+The gateway tests run against an in-process fake engine. `gateway/test/integration/` also
+runs against the real `engine_service` when it has been built (or `ENGINE_SERVICE_BIN` points
+at it), and is skipped otherwise.
+
 ## Running the CLI
 
 ```sh

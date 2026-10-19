@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@ome/protocol": "*",
-    "@ome/shared": "*"
+    "@ome/shared": "*",
+    "fastify": "^5.12.7",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
   }
 }
