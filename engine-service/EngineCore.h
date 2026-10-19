@@ -63,6 +63,11 @@ public:
     void         setOutput(EventOutput* output) noexcept { output_ = output; }
     EventOutput* output() const noexcept { return output_; }
 
+    // A second receiver of every live event, sent before the gateway output.
+    // The market simulator uses it to follow its own orders. It must not call
+    // back into the core from send(). Snapshots are not sent to it.
+    void setObserver(EventOutput* observer) noexcept { observer_ = observer; }
+
     // Checks the order against the instrument's limits, assigns the next
     // order ID and submits it. Emits OrderAccepted, then Trade per fill and
     // OrderRested for any remainder; or OrderRejected (orderId 0) without
@@ -243,6 +248,7 @@ private:
     };
 
     void emit(const protocol::EngineMessage& message) {
+        if (observer_ != nullptr) observer_->send(message);
         if (output_ != nullptr) output_->send(message);
     }
 
@@ -285,7 +291,8 @@ private:
     CoreConfig        config_;
     Adapter           adapter_;  // declared before book_, which holds a reference to it
     engine::OrderBook book_;
-    EventOutput*      output_ = nullptr;
+    EventOutput*      output_   = nullptr;
+    EventOutput*      observer_ = nullptr;
 
     Command                                      current_{};
     std::unordered_map<engine::OrderId, Resting> resting_;   // ownership of resting orders

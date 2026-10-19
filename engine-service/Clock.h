@@ -37,4 +37,26 @@ private:
     protocol::Timestamp now_;
 };
 
+// Reads a wall clock, or a pinned simulated time while one is set. The
+// simulator's boot-time warm-up pins it to each action's time, then switches
+// back to the wall clock.
+class SwitchableClock final : public Clock {
+public:
+    explicit SwitchableClock(Clock& wall) : wall_(wall) {}
+
+    protocol::Timestamp now() override { return simulated_ ? now_ : wall_.now(); }
+    void setSimulated(protocol::Timestamp t) {
+        now_       = t;
+        simulated_ = true;
+    }
+    void useWall() { simulated_ = false; }
+    bool isSimulated() const noexcept { return simulated_; }
+    Clock& wall() noexcept { return wall_; }
+
+private:
+    Clock&              wall_;
+    protocol::Timestamp now_       = 0;
+    bool                simulated_ = false;
+};
+
 }  // namespace engine_service

@@ -1,0 +1,37 @@
+{
+  "fairValue": {
+    "initialVol": 0.0008,
+    "volMin": 0.0003,
+    "volMax": 0.0016,
+    "volOfVol": 0.02,
+    "trendDecay": 0.995,
+    "trendScale": 0.004,
+    "meanReversion": 0.0004
+  },
+  "marketMakers": {
+    "count": 4,
+    "halfSpreadTicks": 2,
+    "halfSpreadStepTicks": 1,
+    "qty": { "min": 50, "max": 300, "mean": 120 },
+    "refreshMinSeconds": 1,
+    "refreshMaxSeconds": 3,
+    "requoteThresholdTicks": 3
+  },
+  "takers": {
+    "count": 5,
+    "ratePerSecond": 2,
+    "sideBias": 0.4,
+    "biasScaleTicks": 5,
+    "throughTicksMin": 1,
+    "throughTicksMax": 3,
+    "qty": { "min": 1, "max": 200, "mean": 30 }
+  },
+  "liquidityProviders": {
+    "count": 3,
+    "ratePerSecond": 0.5,
+    "behindTicksMin": 2,
+    "behindTicksMax": 12,
+    "qty": { "min": 10, "max": 400, "mean": 100 },
+    "lifetimeMeanSeconds": 60
+  }
+}

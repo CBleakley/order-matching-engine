@@ -113,6 +113,11 @@ Timestamps are `i64` nanoseconds since 1970-01-01T00:00:00Z.
   - `OrderCancelled`: a resting order was cancelled; `cancelledQty` is what was still open.
 - **`Heartbeat`**: keeps the connection alive; carries the engine service's clock.
 
+Events whose `traderId` (or `buyerTraderId` / `sellerTraderId`) is below 1,000 belong to the
+engine service's own simulated traders. Their orders were never sent by the gateway, so their
+`clientTag`s are engine-assigned and do not refer to gateway requests. The gateway must not
+issue trader IDs below 1,000.
+
 ### Snapshot
 
 After `HelloAck`, the engine service sends the current state before any live event:

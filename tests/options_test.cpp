@@ -27,6 +27,10 @@ TEST(Options, Defaults) {
     EXPECT_EQ(options.instrument, "protocol/instrument.json");
     EXPECT_EQ(options.logLevel, LogLevel::Info);
     EXPECT_EQ(options.retention, std::chrono::hours(24));
+    EXPECT_FALSE(options.simConfig.has_value());
+    EXPECT_FALSE(options.seed.has_value());
+    EXPECT_EQ(options.warmup, std::chrono::hours(6));
+    EXPECT_FALSE(options.noSim);
     EXPECT_FALSE(options.help);
 }
 
@@ -46,6 +50,22 @@ TEST(Options, EveryFlag) {
     EXPECT_EQ(options.port, 9000);
     EXPECT_EQ(options.instrument, "/etc/nova.json");
     EXPECT_EQ(options.logLevel, LogLevel::Debug);
+}
+
+TEST(Options, SimulatorFlags) {
+    const auto result = parse({"--sim-config", "sim.json", "--seed", "18446744073709551615",
+                               "--warmup", "90m", "--no-sim"});
+    ASSERT_TRUE(std::holds_alternative<Options>(result));
+    const Options& options = std::get<Options>(result);
+    EXPECT_EQ(options.simConfig, "sim.json");
+    EXPECT_EQ(options.seed, 18'446'744'073'709'551'615u);
+    EXPECT_EQ(options.warmup, std::chrono::minutes(90));
+    EXPECT_TRUE(options.noSim);
+}
+
+TEST(Options, WarmupMayBeZero) {
+    EXPECT_EQ(std::get<Options>(parse({"--warmup", "0s"})).warmup, std::chrono::seconds(0));
+    EXPECT_EQ(std::get<Options>(parse({"--seed", "0"})).seed, 0u);
 }
 
 TEST(Options, PortBoundaries) {
@@ -77,6 +97,16 @@ TEST(Options, Errors) {
         {"--retention", "1d"},
         {"--retention", "1.5h"},
         {"--retention", "99999999999h"},
+        {"--seed"},
+        {"--seed", ""},
+        {"--seed", "-1"},
+        {"--seed", "12x"},
+        {"--seed", "18446744073709551616"},
+        {"--warmup", "6"},
+        {"--warmup", "-1h"},
+        {"--warmup", "1.5h"},
+        {"--sim-config"},
+        {"--no-sim", "--bogus"},
         {"--threads", "4"},
         {"7001"},
     };

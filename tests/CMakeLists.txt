@@ -41,12 +41,17 @@ add_executable(tests
     gateway_session_test.cpp
     tcp_server_test.cpp
     options_test.cpp
+    sim_random_test.cpp
+    sim_config_test.cpp
+    simulator_test.cpp
+    simulation_runner_test.cpp
 )
 target_link_libraries(tests PRIVATE engine cli_lib engine_service_net GTest::gtest_main)
 set_project_warnings(tests)
 target_compile_definitions(tests PRIVATE
     GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden"
     PROTOCOL_DIR="${PROJECT_SOURCE_DIR}/protocol"
+    ENGINE_SERVICE_DIR="${PROJECT_SOURCE_DIR}/engine-service"
 )
 if(MSVC)
     # std::getenv is standard C++; silence MSVC's deprecation in favour of _dupenv_s.

@@ -383,4 +383,27 @@ TEST_F(EngineCoreTest, TradesOlderThanTheRetentionPeriodAreNotReplayed) {
     EXPECT_EQ(replayedQtys(), (std::vector<engine::Quantity>{3, 4}));
 }
 
+TEST_F(EngineCoreTest, ObserverSeesEveryLiveEventButNoSnapshot) {
+    RecordingOutput observer;
+    core.setObserver(&observer);
+    submit(1, kAlice, Side::Sell, 14'250, 30);
+    submit(2, kBob, Side::Buy, 14'250, 10);
+    cancel(3, kBob, 99);
+    EXPECT_EQ(observer.messages, out.messages);
+    EXPECT_EQ(observer.messages.size(), 5u);
+
+    // With no gateway attached, the observer still gets the events.
+    core.setOutput(nullptr);
+    observer.messages.clear();
+    cancel(4, kAlice, 1);
+    ASSERT_EQ(observer.messages.size(), 1u);
+    EXPECT_TRUE(std::holds_alternative<wire::OrderCancelled>(observer.messages.front()));
+
+    observer.messages.clear();
+    RecordingOutput snapshot;
+    core.writeSnapshot(snapshot);
+    EXPECT_FALSE(snapshot.messages.empty());
+    EXPECT_TRUE(observer.messages.empty());
+}
+
 }  // namespace

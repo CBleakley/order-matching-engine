@@ -96,6 +96,10 @@ protocol. Run it from the repository root so it finds `protocol/instrument.json`
 | `--instrument <path>` | `protocol/instrument.json` | Instrument config to load at startup.               |
 | `--log-level <level>` | `info`                     | `error`, `warn`, `info` or `debug`.                 |
 | `--retention <time>`  | `24h`                      | How long to keep trades for replay (`s`, `m`, `h`). |
+| `--sim-config <path>` | built-in defaults          | Market simulator config (JSON; see below).          |
+| `--seed <n>`          | random (logged)            | Simulator random seed, to reproduce a run.          |
+| `--warmup <time>`     | `6h`                       | History to backfill at boot (`0s` for none).        |
+| `--no-sim`            | off                        | Run without simulated traders.                      |
 
 The engine service owns order identity: it assigns every order ID, checks prices and quantities
 against the instrument's limits, and only lets an order's owner cancel it. When a gateway
@@ -112,6 +116,37 @@ The code is split so that most of it is testable without sockets: `EngineCore.h`
 decoded commands into order book calls and protocol events, `GatewaySession.h` is the
 per-connection protocol state machine (bytes in, bytes out), and `TcpServer.h` only moves
 bytes between the socket and the session.
+
+### Market simulator
+
+Simulated traders keep the market busy. They run inside the engine service on the engine thread
+and submit through the same `EngineCore` path as gateway commands, so their orders are
+validated and reported like anyone else's. Their events go to the gateway like any others.
+
+- A **fair value** follows a random walk with clustered volatility, a slow trend and a weak pull
+  back to the instrument's `referencePriceTicks`, stepping once per simulated second.
+- **Market makers** quote a bid and an ask around fair value and refresh them (cancel and
+  replace) every 1–3 seconds, or sooner when fair value moves. They keep the book two-sided.
+- **Takers** arrive as a Poisson process (about 2 a second), lean toward fair value versus the
+  last trade, and send limit orders a few ticks through the touch. Any unfilled remainder is
+  cancelled. These produce the trades that make candles.
+- **Liquidity providers** rest orders a few ticks behind the touch for a while, adding depth.
+
+Simulated traders have trader IDs 1 to 999 (human traders are 1,000,000 or above). They follow
+their own orders only from the events addressed to them, plus public market data: best bid and
+ask, and the last trade price. Every parameter is in
+[engine-service/sim-config.json](engine-service/sim-config.json), which lists the built-in
+defaults; pass a file with any subset of its keys to `--sim-config`.
+
+At startup, before it listens for a gateway, the engine service **warms up**: it runs the
+simulator from `now - warmup` to now as fast as possible, with events stamped with simulated
+time. A 6-hour warm-up takes well under a second in a Release build. The retained trades then
+backfill the chart through the reconnect snapshot. After that the simulator runs on the wall
+clock from Asio timers, and its resting orders carry over.
+
+Randomness comes from `std::mt19937_64` with hand-written samplers (no standard
+distributions), so the same seed, config and clock give the same event stream. `--no-sim`
+turns the simulator off for tests that need full control of the book.
 
 ## Running the CLI
 
