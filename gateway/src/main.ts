@@ -3,6 +3,7 @@
 import { ConfigError, loadConfig, type GatewayConfig } from './config.js';
 import { EngineClient } from './engine/engine-client.js';
 import { createLogger } from './logger.js';
+import { MarketData } from './market/market-data.js';
 import { buildServer } from './server.js';
 import { SlidingWindowRateLimiter } from './session/rate-limiter.js';
 import { SessionService } from './session/session-service.js';
@@ -39,6 +40,14 @@ async function main(): Promise<void> {
   });
   engine.on('event', (event) => {
     traderIds.addEvent(event);
+  });
+  // Candles and daily stats, rebuilt on every snapshot.
+  const marketData = new MarketData();
+  engine.on('snapshot', (snapshot) => {
+    marketData.applySnapshot(snapshot);
+  });
+  engine.on('event', (event) => {
+    marketData.applyEvent(event);
   });
   const sessions = new SessionService({
     secret: config.sessionSecret,

@@ -206,6 +206,13 @@ changed `engineInstanceId` raises `engineReset`. `submit` and `cancel` resolve w
 engine's reply (`OrderAccepted`, `OrderCancelled` or `OrderRejected`). They reject if the
 engine does not answer within 5 seconds or the connection drops first.
 
+`MarketData` (`gateway/src/market/`) turns trades into candles for the 5s, 15s, 1m and 5m
+intervals (the newest 1,000 bars of each, aligned to UTC boundaries) and the daily header stats
+(open, high and low reset at 00:00 UTC). It is rebuilt from scratch from every engine snapshot's
+replayed trades, then updated by live trades. An interval with no trades has no bar, so the
+chart shows a gap. A trade stamped earlier than the one before it is folded into the current bar
+and day instead of being dropped, so volume is never lost and bars never move back in time.
+
 The gateway tests run against an in-process fake engine. `gateway/test/integration/` also
 runs against the real `engine_service` when it has been built (or `ENGINE_SERVICE_BIN` points
 at it), and is skipped otherwise.
