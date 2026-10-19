@@ -212,7 +212,9 @@ TEST(Simulator, WarmUpBackfillsHistoryAndSwitchesToTheWallClock) {
     for (const wire::EngineMessage& message : market.gateway.messages) {
         std::visit(
             [](const auto& m) {
-                if constexpr (requires { m.ts; }) EXPECT_EQ(m.ts, kT0 + 5 * kSecond);
+                if constexpr (requires { m.ts; }) {
+                    EXPECT_EQ(m.ts, kT0 + 5 * kSecond);
+                }
             },
             message);
     }
