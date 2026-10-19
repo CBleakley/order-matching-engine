@@ -12,72 +12,70 @@ export function tickSizeForDecimals(decimals: number): string {
   return decimals === 0 ? '1' : `0.${'0'.repeat(decimals - 1)}1`;
 }
 
-const instrumentSchema = z
-  .strictObject({
-    symbol: z.string().regex(/^[A-Z0-9]{1,16}$/, 'must be 1-16 characters A-Z or 0-9'),
-    name: z.string().min(1),
-    // A string, so the source of truth never passes through binary floating point.
-    tickSize: z.string(),
-    priceDecimals: z.int().min(0).max(MAX_PRICE_DECIMALS),
-    minPriceTicks: z.int().min(1),
-    maxPriceTicks: z.int(),
-    maxOrderQty: z.int().min(1),
-    referencePriceTicks: z.int(),
-  })
-  .superRefine((config, ctx) => {
-    // Zod still runs this refinement when a field check above has failed (e.g.
-    // priceDecimals -1); those failures are already reported, so stop here.
-    const integers = [
-      config.priceDecimals,
-      config.minPriceTicks,
-      config.maxPriceTicks,
-      config.maxOrderQty,
-      config.referencePriceTicks,
-    ];
-    if (
-      !integers.every((value) => Number.isSafeInteger(value)) ||
-      config.priceDecimals < 0 ||
-      config.priceDecimals > MAX_PRICE_DECIMALS
-    ) {
-      return;
-    }
-    const expectedTickSize = tickSizeForDecimals(config.priceDecimals);
-    if (config.tickSize !== expectedTickSize) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['tickSize'],
-        message: `must be "${expectedTickSize}" to agree with priceDecimals ${String(config.priceDecimals)}`,
-      });
-    }
-    if (config.minPriceTicks > config.maxPriceTicks) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['maxPriceTicks'],
-        message: 'must be at least minPriceTicks',
-      });
-    }
-    if (
-      config.referencePriceTicks < config.minPriceTicks ||
-      config.referencePriceTicks > config.maxPriceTicks
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['referencePriceTicks'],
-        message: 'must be between minPriceTicks and maxPriceTicks',
-      });
-    }
-    // The largest notional (price in ticks times quantity) must be an exact JS number.
-    if (
-      BigInt(config.maxPriceTicks) * BigInt(config.maxOrderQty) >
-      BigInt(Number.MAX_SAFE_INTEGER)
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['maxOrderQty'],
-        message: 'maxPriceTicks * maxOrderQty must not exceed 2^53 - 1',
-      });
-    }
-  });
+// The instrument's fields, also used for the instrument in the public `welcome` message.
+export const instrumentFields = {
+  symbol: z.string().regex(/^[A-Z0-9]{1,16}$/, 'must be 1-16 characters A-Z or 0-9'),
+  name: z.string().min(1),
+  // A string, so the source of truth never passes through binary floating point.
+  tickSize: z.string(),
+  priceDecimals: z.int().min(0).max(MAX_PRICE_DECIMALS),
+  minPriceTicks: z.int().min(1),
+  maxPriceTicks: z.int(),
+  maxOrderQty: z.int().min(1),
+  referencePriceTicks: z.int(),
+};
+
+const instrumentSchema = z.strictObject(instrumentFields).superRefine((config, ctx) => {
+  // Zod still runs this refinement when a field check above has failed (e.g.
+  // priceDecimals -1); those failures are already reported, so stop here.
+  const integers = [
+    config.priceDecimals,
+    config.minPriceTicks,
+    config.maxPriceTicks,
+    config.maxOrderQty,
+    config.referencePriceTicks,
+  ];
+  if (
+    !integers.every((value) => Number.isSafeInteger(value)) ||
+    config.priceDecimals < 0 ||
+    config.priceDecimals > MAX_PRICE_DECIMALS
+  ) {
+    return;
+  }
+  const expectedTickSize = tickSizeForDecimals(config.priceDecimals);
+  if (config.tickSize !== expectedTickSize) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['tickSize'],
+      message: `must be "${expectedTickSize}" to agree with priceDecimals ${String(config.priceDecimals)}`,
+    });
+  }
+  if (config.minPriceTicks > config.maxPriceTicks) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['maxPriceTicks'],
+      message: 'must be at least minPriceTicks',
+    });
+  }
+  if (
+    config.referencePriceTicks < config.minPriceTicks ||
+    config.referencePriceTicks > config.maxPriceTicks
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['referencePriceTicks'],
+      message: 'must be between minPriceTicks and maxPriceTicks',
+    });
+  }
+  // The largest notional (price in ticks times quantity) must be an exact JS number.
+  if (BigInt(config.maxPriceTicks) * BigInt(config.maxOrderQty) > BigInt(Number.MAX_SAFE_INTEGER)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['maxOrderQty'],
+      message: 'maxPriceTicks * maxOrderQty must not exceed 2^53 - 1',
+    });
+  }
+});
 
 export type InstrumentConfig = Readonly<z.infer<typeof instrumentSchema>>;
 
