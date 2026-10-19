@@ -159,24 +159,44 @@ $env:SESSION_SECRET = '<at least 32 random characters>'
 npm start -w @ome/gateway
 ```
 
-| Variable                      | Default     | Description                                                     |
-|-------------------------------|-------------|-----------------------------------------------------------------|
-| `SESSION_SECRET`              | (required)  | Signs session tokens. At least 32 characters.                   |
-| `PORT`                        | `8080`      | HTTP port.                                                      |
-| `HOST`                        | `0.0.0.0`   | HTTP bind address.                                              |
-| `ENGINE_HOST`                 | `127.0.0.1` | Engine service address.                                         |
-| `ENGINE_PORT`                 | `7001`      | Engine service port.                                            |
-| `LOG_LEVEL`                   | `info`      | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. |
-| `MAX_SESSIONS`                | `1000`      | Limit on concurrent sessions (enforced by later tickets).       |
-| `MAX_OPEN_ORDERS_PER_SESSION` | `50`        | Limit on resting orders per session (later tickets).            |
-| `MAX_ORDERS_PER_SECOND`       | `10`        | Per-session order rate limit (later tickets).                   |
-| `MAX_WS_MESSAGE_BYTES`        | `4096`      | Largest accepted WebSocket message (later tickets).             |
+| Variable                        | Default     | Description                                                     |
+|---------------------------------|-------------|-----------------------------------------------------------------|
+| `SESSION_SECRET`                | (required)  | Signs session tokens. At least 32 characters.                   |
+| `PORT`                          | `8080`      | HTTP port.                                                      |
+| `HOST`                          | `0.0.0.0`   | HTTP bind address.                                              |
+| `ENGINE_HOST`                   | `127.0.0.1` | Engine service address.                                         |
+| `ENGINE_PORT`                   | `7001`      | Engine service port.                                            |
+| `LOG_LEVEL`                     | `info`      | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. |
+| `TRUST_PROXY`                   | (none)      | Reverse proxy IPs/CIDRs (comma-separated) trusted for the IP.   |
+| `SESSION_MAX_AGE_SECONDS`       | `604800`    | Session tokens older than this (7 days) are rejected.           |
+| `SESSION_RATE_LIMIT_PER_MINUTE` | `10`        | `POST /api/session` requests per client IP per minute.          |
+| `MAX_SESSIONS`                  | `1000`      | Limit on concurrent sessions (enforced by later tickets).       |
+| `MAX_OPEN_ORDERS_PER_SESSION`   | `50`        | Limit on resting orders per session (later tickets).            |
+| `MAX_ORDERS_PER_SECOND`         | `10`        | Per-session order rate limit (later tickets).                   |
+| `MAX_WS_MESSAGE_BYTES`          | `4096`      | Largest accepted WebSocket message (later tickets).             |
 
 Invalid configuration stops it at startup with a list of the bad variables (never their values).
 It logs JSON lines to stdout (pino), with secret-bearing fields redacted.
 
 `GET /healthz` returns `200 {"status":"ok","engine":{"connected":true,"engineInstanceId":"…"}}`
 while the engine connection is up, and `503` with `"status":"unavailable"` otherwise.
+
+`POST /api/session` with `{"name":"…"}` joins as an anonymous trader and returns
+`{"token":"…","traderId":1234567,"name":"…"}`. Names are trimmed and must be 2 to 20 letters,
+digits, spaces, `-` or `_`; anything else gets `400 {"error":"invalidName","message":"…"}`. The
+trader ID is random in `[1000000, 2^31)` and is drawn again if it matches any trader ID the
+gateway knows of (ones it issued, ones the engine reports, and ones in tokens it has verified).
+Requests are rate-limited per client IP (`429` with `Retry-After`), and the endpoint answers
+`503` while the engine is disconnected. Behind a reverse proxy, list its address in
+`TRUST_PROXY`; the client IP is then the right-most `X-Forwarded-For` entry that is not a
+trusted proxy, so entries a client adds itself are ignored.
+
+The token is `base64url(payload).base64url(HMAC-SHA256(SESSION_SECRET, payload))` and carries
+the trader ID, name, `engineInstanceId` and issue time; the gateway keeps no session table
+(`gateway/src/session/`). It is rejected, and the client must join again, when the signature
+is wrong, it is older than `SESSION_MAX_AGE_SECONDS`, or it was issued by a different engine
+instance (the engine restarted and its book is gone). Clients present it in their first
+WebSocket message, never in a URL, and the gateway never logs it.
 
 `EngineClient` (`gateway/src/engine/engine-client.ts`) owns the engine connection. It sends
 `Hello`, consumes the snapshot, then streams live events, with heartbeats both ways. It drops

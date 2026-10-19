@@ -4,6 +4,9 @@ import { ConfigError, loadConfig, type GatewayConfig } from './config.js';
 import { EngineClient } from './engine/engine-client.js';
 import { createLogger } from './logger.js';
 import { buildServer } from './server.js';
+import { SlidingWindowRateLimiter } from './session/rate-limiter.js';
+import { SessionService } from './session/session-service.js';
+import { TraderIdRegistry } from './session/trader-ids.js';
 
 const SHUTDOWN_GRACE_MS = 10_000;
 
@@ -28,7 +31,34 @@ async function main(): Promise<void> {
     port: config.enginePort,
     logger,
   });
-  const server = buildServer({ logger, engineStatus: () => engine.status });
+
+  // Trader IDs the engine reports are known, so new sessions never reuse them.
+  const traderIds = new TraderIdRegistry();
+  engine.on('snapshot', (snapshot) => {
+    traderIds.addSnapshot(snapshot);
+  });
+  engine.on('event', (event) => {
+    traderIds.addEvent(event);
+  });
+  const sessions = new SessionService({
+    secret: config.sessionSecret,
+    maxAgeMs: config.session.maxAgeMs,
+    engineStatus: () => engine.status,
+    traderIds,
+  });
+
+  const server = buildServer({
+    logger,
+    engineStatus: () => engine.status,
+    trustProxy: config.trustProxy,
+    sessions: {
+      sessions,
+      rateLimiter: new SlidingWindowRateLimiter({
+        limit: config.session.rateLimitPerMinute,
+        windowMs: 60_000,
+      }),
+    },
+  });
 
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals): void => {

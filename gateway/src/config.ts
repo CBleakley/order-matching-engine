@@ -9,6 +9,20 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 const port = z.coerce.number().int().min(1).max(65535);
 const positiveInt = z.coerce.number().int().positive();
+// Comma-separated IP addresses, CIDR ranges or proxy-addr's named ranges
+// (loopback, linklocal, uniquelocal). Empty means none.
+const PROXY_ENTRY = /^(loopback|linklocal|uniquelocal|[0-9A-Fa-f.:]+(\/[0-9]{1,3})?)$/;
+const proxyList = z
+  .string()
+  .transform((value) =>
+    value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry !== ''),
+  )
+  .refine((entries) => entries.every((entry) => PROXY_ENTRY.test(entry)), {
+    message: 'must list IP addresses or CIDR ranges',
+  });
 
 const envSchema = z.object({
   PORT: port.default(8080),
@@ -17,6 +31,10 @@ const envSchema = z.object({
   ENGINE_PORT: port.default(7001),
   SESSION_SECRET: z.string().min(32, 'must be at least 32 characters'),
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
+  // Reverse proxies whose X-Forwarded-For is believed when they are the peer.
+  TRUST_PROXY: proxyList.default([]),
+  SESSION_MAX_AGE_SECONDS: positiveInt.default(7 * 24 * 60 * 60),
+  SESSION_RATE_LIMIT_PER_MINUTE: positiveInt.default(10),
   // Limits enforced by later tickets.
   MAX_SESSIONS: positiveInt.default(1000),
   MAX_OPEN_ORDERS_PER_SESSION: positiveInt.default(50),
@@ -31,6 +49,11 @@ export interface GatewayConfig {
   readonly enginePort: number;
   readonly sessionSecret: string;
   readonly logLevel: LogLevel;
+  readonly trustProxy: readonly string[];
+  readonly session: {
+    readonly maxAgeMs: number;
+    readonly rateLimitPerMinute: number;
+  };
   readonly limits: {
     readonly maxSessions: number;
     readonly maxOpenOrdersPerSession: number;
@@ -60,6 +83,11 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): G
     enginePort: e.ENGINE_PORT,
     sessionSecret: e.SESSION_SECRET,
     logLevel: e.LOG_LEVEL,
+    trustProxy: e.TRUST_PROXY,
+    session: {
+      maxAgeMs: e.SESSION_MAX_AGE_SECONDS * 1000,
+      rateLimitPerMinute: e.SESSION_RATE_LIMIT_PER_MINUTE,
+    },
     limits: {
       maxSessions: e.MAX_SESSIONS,
       maxOpenOrdersPerSession: e.MAX_OPEN_ORDERS_PER_SESSION,

@@ -13,6 +13,8 @@ describe('loadConfig', () => {
       enginePort: 7001,
       sessionSecret: SECRET,
       logLevel: 'info',
+      trustProxy: [],
+      session: { maxAgeMs: 7 * 24 * 60 * 60 * 1000, rateLimitPerMinute: 10 },
       limits: {
         maxSessions: 1000,
         maxOpenOrdersPerSession: 50,
@@ -30,6 +32,9 @@ describe('loadConfig', () => {
       ENGINE_HOST: 'engine',
       ENGINE_PORT: '7100',
       LOG_LEVEL: 'debug',
+      TRUST_PROXY: ' 172.16.0.0/12, ::1 ,loopback,',
+      SESSION_MAX_AGE_SECONDS: '3600',
+      SESSION_RATE_LIMIT_PER_MINUTE: '3',
       MAX_SESSIONS: '5',
       MAX_OPEN_ORDERS_PER_SESSION: '6',
       MAX_ORDERS_PER_SECOND: '7',
@@ -41,6 +46,8 @@ describe('loadConfig', () => {
       engineHost: 'engine',
       enginePort: 7100,
       logLevel: 'debug',
+      trustProxy: ['172.16.0.0/12', '::1', 'loopback'],
+      session: { maxAgeMs: 3_600_000, rateLimitPerMinute: 3 },
       limits: {
         maxSessions: 5,
         maxOpenOrdersPerSession: 6,
@@ -74,6 +81,9 @@ describe('loadConfig', () => {
     ['ENGINE_PORT', '1.5'],
     ['LOG_LEVEL', 'verbose'],
     ['MAX_SESSIONS', '0'],
+    ['TRUST_PROXY', 'caddy'],
+    ['SESSION_MAX_AGE_SECONDS', '0'],
+    ['SESSION_RATE_LIMIT_PER_MINUTE', '-1'],
   ])('rejects %s=%s', (name, value) => {
     expect(() => loadConfig({ SESSION_SECRET: SECRET, [name]: value })).toThrow(
       new RegExp(`^Invalid gateway configuration:\\n  ${name}: `),
