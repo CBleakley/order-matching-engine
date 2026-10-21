@@ -3,6 +3,7 @@ import { INSTRUMENT } from '@ome/shared';
 import { usePalette } from '../settings/palette.js';
 import { type AppState, connectionLabel } from '../state/app-state.js';
 import { useAppState } from '../state/store.js';
+import { UserBadge } from './UserBadge.js';
 
 const selectConnection = (state: AppState) => state.connection;
 
@@ -61,6 +62,7 @@ export function AppHeader() {
       </dl>
 
       <div className="header-actions">
+        <UserBadge />
         <div className={`pill pill--${connection.kind}`} role="status">
           <span className="pill__dot" aria-hidden="true" />
           <span className="pill__label">{connectionLabel(connection)}</span>

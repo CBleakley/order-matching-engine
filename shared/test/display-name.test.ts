@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateDisplayName } from '../../src/session/name.js';
+import { validateDisplayName } from '../src/display-name.js';
 
 describe('validateDisplayName', () => {
   it.each([

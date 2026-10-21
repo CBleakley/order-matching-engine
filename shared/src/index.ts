@@ -2,6 +2,12 @@
 export const SHARED_PACKAGE = '@ome/shared';
 
 export {
+  MAX_NAME_LENGTH,
+  MIN_NAME_LENGTH,
+  validateDisplayName,
+  type NameValidation,
+} from './display-name.js';
+export {
   INSTRUMENT,
   InstrumentConfigError,
   MAX_PRICE_DECIMALS,
@@ -60,3 +66,10 @@ export {
   rejectReasonSchema,
   type RejectReason,
 } from './reject-reasons.js';
+export {
+  joinErrorResponseSchema,
+  joinResponseSchema,
+  SESSION_PATH,
+  type JoinErrorResponse,
+  type JoinResponse,
+} from './session-api.js';

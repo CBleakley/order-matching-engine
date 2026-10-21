@@ -31,7 +31,7 @@ export function createStore(initial: AppState = initialState): Store {
   };
 }
 
-// The page's store. main.tsx connects it to the gateway once the viewer has joined (P1-16).
+// The page's store. SessionGate connects it to the gateway once the viewer has joined.
 export const appStore = createStore();
 
 export const StoreContext = createContext<Store>(appStore);

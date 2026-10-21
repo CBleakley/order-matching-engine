@@ -1,0 +1,203 @@
+/* Join screen and the header's user badge ("Join" and dashboard artboards). */
+:root {
+  --color-notice: #f2c77a;
+  --color-notice-bg: #221d12;
+  --color-notice-border: #3a3020;
+}
+
+.join-page {
+  min-height: 100vh;
+  padding: 48px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.join {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.join-card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.join-card__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.join-card__title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.join-card__text {
+  line-height: 1.6;
+  color: var(--color-text-3);
+}
+
+.join-notice {
+  font-size: 13px;
+  color: var(--color-notice);
+  padding: 10px 12px;
+  background: var(--color-notice-bg);
+  border: 1px solid var(--color-notice-border);
+  border-radius: 8px;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-3);
+}
+
+.field__input {
+  height: var(--touch-min);
+  padding: 0 14px;
+  background: var(--color-inset);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+}
+
+.field__input::placeholder {
+  color: #5c6477;
+}
+
+.field__input[aria-invalid='true'] {
+  border-color: var(--color-error);
+}
+
+.field__hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-4);
+}
+
+.field__error {
+  font-size: 13px;
+  color: var(--color-error);
+}
+
+.button-primary {
+  height: 48px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-primary:hover {
+  filter: brightness(1.1);
+}
+
+.button-primary[aria-disabled='true'] {
+  cursor: progress;
+  filter: none;
+  opacity: 0.7;
+}
+
+.join-features {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.join-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--color-well);
+  border: 1px solid #1a1f2b;
+  border-radius: var(--radius-control);
+}
+
+.join-feature__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.join-feature__text {
+  font-size: var(--font-size-small);
+  color: var(--color-text-4);
+}
+
+.join-footer {
+  font-size: var(--font-size-small);
+  color: var(--color-text-4);
+  text-align: center;
+}
+
+/* Header: the viewer's name and the Leave action. */
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px 4px;
+  background: var(--color-well);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+.user-badge__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-tile);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.user-badge__name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.user-badge__leave {
+  min-height: 36px;
+  padding: 0 12px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-3);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.user-badge__leave:hover {
+  background: #1d2230;
+  color: var(--color-text);
+}
