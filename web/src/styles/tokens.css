@@ -9,6 +9,9 @@
   --color-border: #1e2330;
   --color-border-strong: #262c3a;
   --color-row-hover: #151925;
+  --color-chart-grid: #181c26;
+  --color-tooltip-border: #2a3142;
+  --color-segment-on: #232a3b;
 
   /* Text, brightest to dimmest */
   --color-text: #e7eaf0;

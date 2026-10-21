@@ -1,11 +1,19 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { GatewayCommands } from '../src/connection/gateway-context.js';
 import type { JoinFn } from '../src/session/join-api.js';
 import { type ConnectFn, SessionGate } from '../src/session/SessionGate.js';
 import { createSessionStore, type Session } from '../src/session/session-store.js';
 import { createStore, StoreContext } from '../src/state/store.js';
-import { welcome } from './messages.js';
+import { snapshot, welcome } from './messages.js';
+
+// jsdom has no canvas for the price chart.
+vi.mock('lightweight-charts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('lightweight-charts')>()),
+  // vi.mock is hoisted above the imports, so the fake is loaded here.
+  createChart: (await import('./fake-chart.js')).fakeCreateChart,
+}));
 
 const SESSION: Session = { token: 'payload.signature', traderId: 1_000_001, name: 'Ada' };
 
@@ -15,11 +23,22 @@ afterEach(() => {
 
 // Records each connection, so tests can expire it and see it stopped.
 function fakeConnect() {
-  const connections: { session: Session; onExpired: () => void; stop: () => void }[] = [];
+  const connections: {
+    session: Session;
+    onExpired: () => void;
+    stop: () => void;
+    commands: GatewayCommands;
+  }[] = [];
   const connect = vi.fn<ConnectFn>((_store, session, onExpired) => {
     const stop = vi.fn();
-    connections.push({ session, onExpired, stop });
-    return stop;
+    const commands: GatewayCommands = {
+      placeOrder: vi.fn(() => true),
+      cancelOrder: vi.fn(() => true),
+      cancelAll: vi.fn(() => true),
+      setInterval: vi.fn(() => true),
+    };
+    connections.push({ session, onExpired, stop, commands });
+    return { commands, stop };
   });
   return { connect, connections };
 }
@@ -82,6 +101,17 @@ describe('SessionGate', () => {
       });
     });
     expect(within(header).getByText('Ada L')).toBeInTheDocument();
+  });
+
+  it("gives the dashboard the connection's commands", () => {
+    const { store, connections } = renderGate(SESSION);
+    act(() => {
+      store.dispatch({ type: 'server', message: welcome() });
+      store.dispatch({ type: 'server', message: snapshot() });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '1m' }));
+    expect(connections[0]?.commands.setInterval).toHaveBeenCalledWith('1m');
   });
 
   it('returns to the join screen with an explanation when the session expires', async () => {

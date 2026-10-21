@@ -1,10 +1,17 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App.js';
 import { PALETTE_STORAGE_KEY } from '../src/settings/palette.js';
 import { createStore, StoreContext } from '../src/state/store.js';
 import { snapshot } from './messages.js';
+
+// jsdom has no canvas for the price chart.
+vi.mock('lightweight-charts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('lightweight-charts')>()),
+  // vi.mock is hoisted above the imports, so the fake is loaded here.
+  createChart: (await import('./fake-chart.js')).fakeCreateChart,
+}));
 
 afterEach(() => {
   window.localStorage.clear();

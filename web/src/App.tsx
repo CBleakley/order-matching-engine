@@ -1,8 +1,9 @@
 import { AppHeader } from './components/AppHeader.js';
 import { Panel } from './components/Panel.js';
+import { PriceChart } from './components/PriceChart.js';
 
-// The dashboard layout from the design canvas. Panels are placeholders until
-// the chart (P1-17), order ticket (P1-18) and order/trade panels (P1-19) land.
+// The dashboard layout from the design canvas. The remaining placeholders are
+// replaced by the order ticket (P1-18) and order/trade panels (P1-19).
 export function App() {
   return (
     <div className="page">
@@ -14,9 +15,7 @@ export function App() {
         <main id="main" className="main" tabIndex={-1}>
           <div className="row">
             <Panel title="Price chart" className="panel--chart" hideHeading>
-              <div className="placeholder placeholder--chart">
-                The candlestick chart appears here.
-              </div>
+              <PriceChart />
             </Panel>
             <Panel title="Place order" className="panel--ticket">
               <div className="placeholder">The order ticket appears here.</div>
