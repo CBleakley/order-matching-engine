@@ -81,7 +81,25 @@ fresh `snapshot`. `seq` restarts at 1 on every connection.
 ### Keepalive
 
 The client may send `ping`; the gateway answers `pong`. The gateway also uses WebSocket-level
-ping/pong and closes idle connections.
+ping/pong and closes a connection that misses a pong (every 30 s by default).
+
+### Connection limits
+
+- The upgrade request is refused with a plain HTTP status, before any WebSocket exists, when its
+  `Origin` is missing or not on the gateway's allow-list (`403`), the gateway is at its total
+  connection cap (`503`, default 500) or the client IP is at its cap (`429`, default 5).
+- A frame larger than the limit (4096 bytes) closes the connection with code `1009`. A binary frame
+  gets `error` `badMessage`.
+- After an `auth`, every bad frame gets `error` `badMessage`; after 5 of them the connection is
+  closed with code `1008`. Connections are also closed with `1008` after `authRequired` and
+  `sessionExpired`.
+- When the engine service restarts, every connection gets `error` `sessionExpired` and is closed.
+- Order limits are per session, shared by all of its connections: 10 orders or cancels per second
+  with bursts of 20, at most 50 open orders (resting plus awaiting the engine), and a price within
+  10% of the last trade (or the reference price before the first trade). Each `cancelAll` cancel
+  uses one of the rate limit's tokens.
+- A successful `cancelOrder` has no direct reply: the order's `orderUpdate` with status
+  `cancelled` reports it.
 
 ## Client → gateway
 

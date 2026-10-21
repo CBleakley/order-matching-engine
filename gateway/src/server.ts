@@ -1,5 +1,5 @@
 // The gateway's HTTP server: the health check and, when configured, the
-// session endpoint. The WebSocket endpoint arrives in P1-10.
+// session endpoint and the WebSocket endpoint.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import Fastify, { type FastifyInstance, type RawServerDefault } from 'fastify';
@@ -7,6 +7,7 @@ import type { Logger } from 'pino';
 
 import type { EngineStatus } from './engine/engine-client.js';
 import { registerSessionRoutes, type SessionRoutesOptions } from './session/routes.js';
+import { registerWebSocketRoute, type WebSocketOptions } from './ws/ws-server.js';
 
 export interface ServerOptions {
   readonly logger: Logger;
@@ -17,6 +18,8 @@ export interface ServerOptions {
   readonly trustProxy?: readonly string[];
   // Serves POST /api/session when present.
   readonly sessions?: SessionRoutesOptions;
+  // Serves GET /ws when present.
+  readonly ws?: WebSocketOptions;
 }
 
 export interface HealthResponse {
@@ -61,6 +64,9 @@ export function buildServer(options: ServerOptions): GatewayServer {
 
   if (options.sessions !== undefined) {
     registerSessionRoutes(server, options.sessions);
+  }
+  if (options.ws !== undefined) {
+    registerWebSocketRoute(server, options.ws);
   }
 
   return server;

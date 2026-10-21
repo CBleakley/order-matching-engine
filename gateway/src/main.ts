@@ -4,10 +4,15 @@ import { ConfigError, loadConfig, type GatewayConfig } from './config.js';
 import { EngineClient } from './engine/engine-client.js';
 import { createLogger } from './logger.js';
 import { MarketData } from './market/market-data.js';
+import { OpenOrderRegistry } from './orders/open-orders.js';
+import { OrderEntry } from './orders/order-entry.js';
 import { buildServer } from './server.js';
 import { SlidingWindowRateLimiter } from './session/rate-limiter.js';
 import { SessionService } from './session/session-service.js';
+import { TokenBucketLimiter } from './session/token-bucket.js';
 import { TraderIdRegistry } from './session/trader-ids.js';
+import type { ClientConnection } from './ws/client-connection.js';
+import { SessionHub } from './ws/session-hub.js';
 
 const SHUTDOWN_GRACE_MS = 10_000;
 
@@ -49,6 +54,14 @@ async function main(): Promise<void> {
   engine.on('event', (event) => {
     marketData.applyEvent(event);
   });
+  // Human traders' resting orders, for the open-order cap and cancel checks.
+  const openOrders = new OpenOrderRegistry();
+  engine.on('snapshot', (snapshot) => {
+    openOrders.applySnapshot(snapshot);
+  });
+  engine.on('event', (event) => {
+    openOrders.applyEvent(event);
+  });
   const sessions = new SessionService({
     secret: config.sessionSecret,
     maxAgeMs: config.session.maxAgeMs,
@@ -66,6 +79,25 @@ async function main(): Promise<void> {
         limit: config.session.rateLimitPerMinute,
         windowMs: 60_000,
       }),
+    },
+    ws: {
+      sessions,
+      orderEntry: new OrderEntry({
+        engine,
+        openOrders,
+        lastPrice: () => marketData.stats().last,
+        limits: {
+          maxOpenOrdersPerSession: config.limits.maxOpenOrdersPerSession,
+          priceBandPercent: config.limits.priceBandPercent,
+        },
+        limiter: new TokenBucketLimiter({
+          ratePerSecond: config.limits.maxOrdersPerSecond,
+          burst: config.limits.orderBurst,
+        }),
+      }),
+      hub: new SessionHub<ClientConnection>(),
+      engine,
+      limits: { ...config.ws, maxMessageBytes: config.limits.maxWsMessageBytes },
     },
   });
 

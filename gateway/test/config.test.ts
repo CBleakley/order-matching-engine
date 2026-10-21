@@ -19,7 +19,17 @@ describe('loadConfig', () => {
         maxSessions: 1000,
         maxOpenOrdersPerSession: 50,
         maxOrdersPerSecond: 10,
+        orderBurst: 20,
+        priceBandPercent: 10,
         maxWsMessageBytes: 4096,
+      },
+      ws: {
+        allowedOrigins: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+        maxConnections: 500,
+        maxConnectionsPerIp: 5,
+        authTimeoutMs: 5000,
+        pingIntervalMs: 30_000,
+        maxViolations: 5,
       },
     });
   });
@@ -38,7 +48,15 @@ describe('loadConfig', () => {
       MAX_SESSIONS: '5',
       MAX_OPEN_ORDERS_PER_SESSION: '6',
       MAX_ORDERS_PER_SECOND: '7',
+      ORDER_BURST: '9',
+      PRICE_BAND_PERCENT: '25',
       MAX_WS_MESSAGE_BYTES: '8',
+      WS_ALLOWED_ORIGINS: 'https://nova.example.com, http://localhost:3000',
+      WS_MAX_CONNECTIONS: '11',
+      WS_MAX_CONNECTIONS_PER_IP: '2',
+      WS_AUTH_TIMEOUT_MS: '1500',
+      WS_PING_INTERVAL_MS: '2500',
+      WS_MAX_VIOLATIONS: '3',
     });
     expect(config).toMatchObject({
       port: 9000,
@@ -52,7 +70,17 @@ describe('loadConfig', () => {
         maxSessions: 5,
         maxOpenOrdersPerSession: 6,
         maxOrdersPerSecond: 7,
+        orderBurst: 9,
+        priceBandPercent: 25,
         maxWsMessageBytes: 8,
+      },
+      ws: {
+        allowedOrigins: ['https://nova.example.com', 'http://localhost:3000'],
+        maxConnections: 11,
+        maxConnectionsPerIp: 2,
+        authTimeoutMs: 1500,
+        pingIntervalMs: 2500,
+        maxViolations: 3,
       },
     });
   });
@@ -84,6 +112,12 @@ describe('loadConfig', () => {
     ['TRUST_PROXY', 'caddy'],
     ['SESSION_MAX_AGE_SECONDS', '0'],
     ['SESSION_RATE_LIMIT_PER_MINUTE', '-1'],
+    ['PRICE_BAND_PERCENT', '101'],
+    ['WS_ALLOWED_ORIGINS', 'localhost:5173'],
+    ['WS_ALLOWED_ORIGINS', 'https://example.com/'],
+    ['WS_ALLOWED_ORIGINS', 'https://example.com/app'],
+    ['WS_ALLOWED_ORIGINS', 'ftp://example.com'],
+    ['WS_MAX_CONNECTIONS_PER_IP', '0'],
   ])('rejects %s=%s', (name, value) => {
     expect(() => loadConfig({ SESSION_SECRET: SECRET, [name]: value })).toThrow(
       new RegExp(`^Invalid gateway configuration:\\n  ${name}: `),
