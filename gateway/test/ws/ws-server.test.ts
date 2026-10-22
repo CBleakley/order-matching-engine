@@ -9,8 +9,8 @@ import WebSocket from 'ws';
 
 import { EngineClient } from '../../src/engine/engine-client.js';
 import { MarketData } from '../../src/market/market-data.js';
-import { OpenOrderRegistry } from '../../src/orders/open-orders.js';
 import { OrderEntry } from '../../src/orders/order-entry.js';
+import { TraderBook } from '../../src/orders/trader-book.js';
 import { buildServer, type GatewayServer } from '../../src/server.js';
 import { SessionService } from '../../src/session/session-service.js';
 import { signToken } from '../../src/session/token.js';
@@ -78,16 +78,16 @@ async function harness(options: Options = {}): Promise<Harness> {
 
   const traderIds = new TraderIdRegistry();
   const marketData = new MarketData();
-  const openOrders = new OpenOrderRegistry();
+  const traderBook = new TraderBook();
   engineClient.on('snapshot', (snapshot) => {
     traderIds.addSnapshot(snapshot);
     marketData.applySnapshot(snapshot);
-    openOrders.applySnapshot(snapshot);
+    traderBook.applySnapshot(snapshot);
   });
   engineClient.on('event', (event) => {
     traderIds.addEvent(event);
     marketData.applyEvent(event);
-    openOrders.applyEvent(event);
+    traderBook.applyEvent(event);
   });
   const sessions = new SessionService({
     secret: SECRET,
@@ -103,13 +103,15 @@ async function harness(options: Options = {}): Promise<Harness> {
       sessions,
       orderEntry: new OrderEntry({
         engine: engineClient,
-        openOrders,
+        openOrders: traderBook,
         lastPrice: () => marketData.stats().last,
         limits: { maxOpenOrdersPerSession: options.maxOpenOrders ?? 50, priceBandPercent: 10 },
         limiter: new TokenBucketLimiter({ ratePerSecond: 10, burst: options.orderBurst ?? 100 }),
       }),
       hub,
       engine: engineClient,
+      marketData,
+      traderBook,
       limits: {
         allowedOrigins: [ORIGIN],
         maxConnections: 500,
@@ -136,10 +138,21 @@ function join(h: Harness, name = 'Alice'): { token: string; traderId: number } {
   return result.session;
 }
 
+// Messages carrying the session's state, which most tests here are not about.
+const STATE_TYPES: ReadonlySet<ServerMessage['type']> = new Set([
+  'snapshot',
+  'orderUpdate',
+  'fill',
+  'position',
+]);
+
 // A WebSocket client that records every server message (each checked against
 // the public schema) and how the connection closed.
 class Client {
   readonly socket: WebSocket;
+  // Every message.
+  readonly all: ServerMessage[] = [];
+  // Every message except the STATE_TYPES ones.
   readonly messages: ServerMessage[] = [];
   readonly invalid: string[] = [];
   closeCode: number | undefined;
@@ -150,8 +163,12 @@ class Client {
     this.socket = new WebSocket(url, options);
     this.socket.on('message', (data: Buffer) => {
       const parsed = parseServerMessage(data.toString('utf8'));
-      if (parsed.ok) this.messages.push(parsed.message);
-      else this.invalid.push(parsed.error.detail);
+      if (parsed.ok) {
+        this.all.push(parsed.message);
+        if (!STATE_TYPES.has(parsed.message.type)) this.messages.push(parsed.message);
+      } else {
+        this.invalid.push(parsed.error.detail);
+      }
     });
     this.socket.on('error', () => {
       // 'close' follows.
@@ -186,7 +203,7 @@ class Client {
   }
 
   ofType<T extends ServerMessage['type']>(type: T): Extract<ServerMessage, { type: T }>[] {
-    return this.messages.filter((m): m is Extract<ServerMessage, { type: T }> => m.type === type);
+    return this.all.filter((m): m is Extract<ServerMessage, { type: T }> => m.type === type);
   }
 
   async waitFor(count: number, timeoutMs = 2000): Promise<void> {
@@ -246,10 +263,11 @@ describe('/ws auth', () => {
     client.send({ type: 'ping' });
     client.send({ type: 'ping' });
     await client.waitFor(3);
-    expect(client.messages.map((m) => [m.type, m.seq])).toEqual([
+    expect(client.all.map((m) => [m.type, m.seq])).toEqual([
       ['welcome', 1],
-      ['pong', 2],
+      ['snapshot', 2],
       ['pong', 3],
+      ['pong', 4],
     ]);
   });
 
@@ -333,7 +351,7 @@ describe('/ws auth', () => {
     expect(h.hub.connectionsOf(traderId)).toHaveLength(2);
     h.hub.sendToSession(traderId, { type: 'pong' });
     await Promise.all(tabs.map((tab) => tab.waitFor(2)));
-    for (const tab of tabs) expect(tab.messages[1]).toEqual({ type: 'pong', seq: 2 });
+    for (const tab of tabs) expect(tab.messages[1]).toEqual({ type: 'pong', seq: 3 });
     tabs[0]?.socket.close();
     await until(() => h.hub.connectionsOf(traderId).length === 1);
   });
@@ -437,7 +455,7 @@ describe('/ws keepalive', () => {
     const { client } = await connect(h);
     client.send({ type: 'ping' });
     await client.waitFor(2);
-    expect(client.messages[1]).toEqual({ type: 'pong', seq: 2 });
+    expect(client.messages[1]).toEqual({ type: 'pong', seq: 3 });
   });
 
   it('keeps a responsive connection and closes one that stops answering pings', async () => {
@@ -461,7 +479,8 @@ describe('/ws order entry', () => {
     await client.waitFor(2);
     expect(client.messages[1]).toEqual({
       type: 'orderAck',
-      seq: 2,
+      // The order's orderUpdate and position may come first.
+      seq: expect.any(Number) as number,
       clientOrderId: order.clientOrderId,
       orderId: 1,
     });
@@ -713,5 +732,156 @@ describe('/ws shutdown', () => {
     const { client } = await connect(h);
     await h.server.close();
     expect(await client.closed).toBe(1001);
+  });
+});
+
+describe('/ws private state', () => {
+  function stateOf(client: Client): ServerMessage[] {
+    return client.all.filter((m) => STATE_TYPES.has(m.type) && m.type !== 'snapshot');
+  }
+
+  it('sends a snapshot right after welcome', async () => {
+    const h = await harness({
+      trades: [
+        {
+          type: 'tradeReplay',
+          eventSeq: 0n,
+          ts: BigInt(Date.now()) * 1_000_000n,
+          makerOrderId: 100n,
+          takerOrderId: 101n,
+          buyerTraderId: 1,
+          sellerTraderId: 2,
+          price: 14_250n,
+          qty: 3n,
+          aggressorSide: 'buy',
+        },
+      ],
+    });
+    const { client } = await connect(h);
+    await until(() => client.all.length >= 2);
+    expect(client.all[1]).toEqual({
+      type: 'snapshot',
+      seq: 2,
+      interval: '15s',
+      candles: [expect.objectContaining({ open: 14_250, close: 14_250, volume: 3, trades: 1 })],
+      stats: expect.objectContaining({ last: 14_250 }) as unknown,
+      openOrders: [],
+      fills: [],
+      position: { netQty: 0, cashTicks: 0, pnlAtLastTicks: 0, fillCount: 0, openOrderCount: 0 },
+    });
+  });
+
+  it('pushes order updates, fills and position to every tab of the sessions involved', async () => {
+    const h = await harness();
+    const alice = join(h, 'Alice');
+    const tabs = [await authed(h, alice.token), await authed(h, alice.token)];
+    const bob = await connect(h, 'Bob');
+    const carol = await connect(h, 'Carol');
+
+    tabs[0]?.send(placeOrder({ side: 'sell', qty: 5 }));
+    await until(() => tabs.every((tab) => tab.ofType('position').length === 1));
+    await until(() => tabs[0]?.ofType('orderAck').length === 1);
+    const alicesOrder = tabs[0]?.ofType('orderAck')[0]?.orderId ?? 0;
+
+    // Bob's buy of 3 fills against Alice's resting sell, leaving nothing to rest.
+    h.engine.onSubmit = (message, engine) => {
+      const orderId = engine.nextOrderId++;
+      const ts = BigInt(Date.now()) * 1_000_000n;
+      engine.send({ ...message, type: 'orderAccepted', eventSeq: engine.seq(), ts, orderId });
+      engine.send({
+        type: 'trade',
+        eventSeq: engine.seq(),
+        ts,
+        makerOrderId: BigInt(alicesOrder),
+        takerOrderId: orderId,
+        buyerTraderId: message.traderId,
+        sellerTraderId: alice.traderId,
+        price: message.price,
+        qty: message.qty,
+        aggressorSide: 'buy',
+      });
+    };
+    const price = INSTRUMENT.referencePriceTicks;
+    bob.client.send(placeOrder({ side: 'buy', qty: 3, priceTicks: price }));
+    await until(() => bob.client.ofType('position').length === 1);
+    await until(() => tabs.every((tab) => tab.ofType('position').length === 2));
+
+    for (const tab of tabs) {
+      expect(stateOf(tab)).toEqual([
+        expect.objectContaining({ type: 'orderUpdate', status: 'resting', remainingQty: 5 }),
+        expect.objectContaining({ type: 'position', openOrderCount: 1 }),
+        expect.objectContaining({
+          type: 'orderUpdate',
+          orderId: alicesOrder,
+          status: 'resting',
+          filledQty: 3,
+          remainingQty: 2,
+        }),
+        expect.objectContaining({ type: 'fill', side: 'sell', qty: 3, liquidity: 'maker' }),
+        expect.objectContaining({ type: 'position', netQty: -3, cashTicks: 3 * price }),
+      ]);
+    }
+    expect(stateOf(bob.client)).toEqual([
+      expect.objectContaining({ type: 'orderUpdate', status: 'filled', filledQty: 3 }),
+      expect.objectContaining({ type: 'fill', side: 'buy', qty: 3, liquidity: 'taker' }),
+      expect.objectContaining({ type: 'position', netQty: 3, cashTicks: -3 * price }),
+    ]);
+    expect(stateOf(carol.client)).toEqual([]);
+    // seq stays continuous through the mix of message kinds.
+    for (const client of [...tabs, bob.client]) {
+      expect(client.all.map((m) => m.seq)).toEqual(client.all.map((_m, i) => i + 1));
+    }
+  });
+
+  it('reports a cancel as an orderUpdate', async () => {
+    const h = await harness();
+    const { client } = await connect(h);
+    client.send(placeOrder());
+    await until(() => client.ofType('orderUpdate').length === 1);
+    await until(() => client.ofType('orderAck').length === 1);
+    const orderId = client.ofType('orderAck')[0]?.orderId;
+    client.send({ type: 'cancelOrder', orderId });
+    await until(() => client.ofType('orderUpdate').length === 2);
+    expect(client.ofType('orderUpdate')[1]).toMatchObject({
+      orderId,
+      status: 'cancelled',
+      filledQty: 0,
+      remainingQty: 5,
+    });
+    expect(client.ofType('position').at(-1)).toMatchObject({ openOrderCount: 0 });
+  });
+
+  it('sends a fresh snapshot after reconnecting to the same engine', async () => {
+    const h = await harness();
+    const { client, traderId } = await connect(h);
+    await until(() => client.ofType('snapshot').length === 1);
+    // An order that rested while the gateway was disconnected.
+    h.engine.snapshot.restingOrders = [
+      {
+        type: 'restingOrder',
+        orderId: 42n,
+        traderId,
+        side: 'buy',
+        price: 14_000n,
+        originalQty: 10n,
+        remainingQty: 10n,
+        acceptedAt: 5_000_000n,
+      },
+    ];
+    h.engine.dropConnections();
+    await until(() => client.ofType('snapshot').length === 2);
+    expect(client.ofType('snapshot')[1]?.openOrders).toEqual([
+      {
+        orderId: 42,
+        side: 'buy',
+        priceTicks: 14_000,
+        originalQty: 10,
+        filledQty: 0,
+        remainingQty: 10,
+        status: 'resting',
+        placedAt: 5,
+      },
+    ]);
+    expect(client.closeCode).toBeUndefined();
   });
 });

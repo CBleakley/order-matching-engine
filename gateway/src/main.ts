@@ -4,8 +4,8 @@ import { ConfigError, loadConfig, type GatewayConfig } from './config.js';
 import { EngineClient } from './engine/engine-client.js';
 import { createLogger } from './logger.js';
 import { MarketData } from './market/market-data.js';
-import { OpenOrderRegistry } from './orders/open-orders.js';
 import { OrderEntry } from './orders/order-entry.js';
+import { TraderBook } from './orders/trader-book.js';
 import { buildServer } from './server.js';
 import { SlidingWindowRateLimiter } from './session/rate-limiter.js';
 import { SessionService } from './session/session-service.js';
@@ -54,13 +54,14 @@ async function main(): Promise<void> {
   engine.on('event', (event) => {
     marketData.applyEvent(event);
   });
-  // Human traders' resting orders, for the open-order cap and cancel checks.
-  const openOrders = new OpenOrderRegistry();
+  // Human traders' orders, fills and positions; also used by order entry for
+  // the open-order cap and cancel checks.
+  const traderBook = new TraderBook();
   engine.on('snapshot', (snapshot) => {
-    openOrders.applySnapshot(snapshot);
+    traderBook.applySnapshot(snapshot);
   });
   engine.on('event', (event) => {
-    openOrders.applyEvent(event);
+    traderBook.applyEvent(event);
   });
   const sessions = new SessionService({
     secret: config.sessionSecret,
@@ -84,7 +85,7 @@ async function main(): Promise<void> {
       sessions,
       orderEntry: new OrderEntry({
         engine,
-        openOrders,
+        openOrders: traderBook,
         lastPrice: () => marketData.stats().last,
         limits: {
           maxOpenOrdersPerSession: config.limits.maxOpenOrdersPerSession,
@@ -97,6 +98,8 @@ async function main(): Promise<void> {
       }),
       hub: new SessionHub<ClientConnection>(),
       engine,
+      marketData,
+      traderBook,
       limits: { ...config.ws, maxMessageBytes: config.limits.maxWsMessageBytes },
     },
   });

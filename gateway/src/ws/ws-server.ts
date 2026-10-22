@@ -7,13 +7,21 @@
 // itself, which closes the connection with 1009.
 //
 // When the engine service restarts, its book is gone and every session token
-// is stale, so every client is told `sessionExpired` and disconnected.
+// is stale, so every client is told `sessionExpired` and disconnected. When
+// the gateway reconnects to the same engine, it may have missed events, so
+// every authenticated client gets a fresh `snapshot`.
+//
+// The TraderBook's changes for a trader go to all of that session's
+// connections as they happen.
+import type { Interval } from '@ome/shared';
 import websocket from '@fastify/websocket';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { WebSocket } from 'ws';
 
 import type { EngineClient } from '../engine/engine-client.js';
+import type { MarketData } from '../market/market-data.js';
 import type { OrderEntry } from '../orders/order-entry.js';
+import type { PrivateMessage, TraderBook } from '../orders/trader-book.js';
 import type { GatewayServer } from '../server.js';
 import type { SessionService } from '../session/session-service.js';
 import {
@@ -23,9 +31,12 @@ import {
   ClientConnection,
   type ConnectionLimits,
 } from './client-connection.js';
-import type { SessionHub } from './session-hub.js';
+import type { OutgoingMessage, SessionHub } from './session-hub.js';
 
 export const WS_PATH = '/ws';
+
+// Candle bars in a snapshot.
+export const SNAPSHOT_BARS = 300;
 
 export interface WebSocketLimits extends ConnectionLimits {
   readonly allowedOrigins: readonly string[];
@@ -38,15 +49,36 @@ export interface WebSocketOptions {
   readonly sessions: Pick<SessionService, 'verify'>;
   readonly orderEntry: Pick<OrderEntry, 'placeOrder' | 'cancelOrder' | 'cancelAll'>;
   readonly hub: SessionHub<ClientConnection>;
-  // For engineReset.
+  // For engineReset and snapshots.
   readonly engine: Pick<EngineClient, 'on' | 'off'>;
+  readonly marketData: Pick<MarketData, 'bars' | 'stats'>;
+  readonly traderBook: Pick<TraderBook, 'view' | 'on' | 'off'>;
   readonly limits: WebSocketLimits;
   readonly now?: () => number;
 }
 
 export function registerWebSocketRoute(server: GatewayServer, options: WebSocketOptions): void {
-  const { hub, limits } = options;
+  const { hub, limits, marketData, traderBook } = options;
   const allowedOrigins = new Set(limits.allowedOrigins);
+
+  const snapshot = (traderId: number, interval: Interval): OutgoingMessage => ({
+    type: 'snapshot',
+    interval,
+    candles: marketData.bars(interval, SNAPSHOT_BARS),
+    stats: marketData.stats(),
+    ...traderBook.view(traderId),
+  });
+
+  const onPrivate = (traderId: number, message: PrivateMessage): void => {
+    hub.sendToSession(traderId, message);
+  };
+  // Registered after the market data and trader book listeners (buildServer
+  // runs after they are added), so the state they hold is already rebuilt.
+  const onEngineSnapshot = (): void => {
+    for (const connection of hub.authenticated()) connection.sendSnapshot();
+  };
+  traderBook.on('private', onPrivate);
+  options.engine.on('snapshot', onEngineSnapshot);
 
   const onEngineReset = (): void => {
     if (hub.size === 0) return;
@@ -60,6 +92,8 @@ export function registerWebSocketRoute(server: GatewayServer, options: WebSocket
   options.engine.on('engineReset', onEngineReset);
   server.addHook('onClose', (_instance, done) => {
     options.engine.off('engineReset', onEngineReset);
+    options.engine.off('snapshot', onEngineSnapshot);
+    traderBook.off('private', onPrivate);
     done();
   });
 
@@ -100,6 +134,7 @@ export function registerWebSocketRoute(server: GatewayServer, options: WebSocket
         sessions: options.sessions,
         orderEntry: options.orderEntry,
         hub,
+        snapshot,
         limits,
         logger: log,
         now: options.now ?? Date.now,

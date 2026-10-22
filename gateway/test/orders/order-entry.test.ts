@@ -11,8 +11,8 @@ import {
   type SubmitReply,
   type SubmitRequest,
 } from '../../src/engine/engine-client.js';
-import { OpenOrderRegistry } from '../../src/orders/open-orders.js';
 import { OrderEntry, type OrderReply } from '../../src/orders/order-entry.js';
+import { TraderBook } from '../../src/orders/trader-book.js';
 import { TokenBucketLimiter } from '../../src/session/token-bucket.js';
 
 const ALICE = 1_000_001;
@@ -41,7 +41,7 @@ class StubEngine {
 
 function harness(options: { cap?: number; band?: number; burst?: number; last?: number } = {}) {
   const engine = new StubEngine();
-  const openOrders = new OpenOrderRegistry();
+  const openOrders = new TraderBook();
   const state: { last: number | null } = { last: options.last ?? null };
   const entry = new OrderEntry({
     engine,
@@ -79,7 +79,7 @@ function order(
   };
 }
 
-function rest(registry: OpenOrderRegistry, orderId: bigint, traderId: number): void {
+function rest(registry: TraderBook, orderId: bigint, traderId: number): void {
   registry.applyEvent({
     type: 'orderRested',
     eventSeq: 1n,

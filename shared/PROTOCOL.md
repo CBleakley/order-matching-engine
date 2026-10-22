@@ -143,7 +143,13 @@ the first trade of the day, `open`/`high`/`low` equal `last`.
 `resting` but still produces an `orderUpdate` with status `filled`.
 
 **Position**: `cashTicks` is the cash flow from fills (sells add, buys subtract) and
-`pnlAtLastTicks` = `cashTicks + netQty × last`.
+`pnlAtLastTicks` = `cashTicks + netQty × last`. A `position` follows every change to the trader's
+fills or open orders.
+
+**Fills and restarts**: `fills` holds the trader's 200 most recent fills. The gateway rebuilds every
+trader's fills and position from the trades the engine service retains (24 hours by default), so
+after a gateway restart, fills older than that window are gone and no longer count towards
+`netQty`, `cashTicks` or `fillCount`. Open orders are always complete.
 
 ### Error codes
 

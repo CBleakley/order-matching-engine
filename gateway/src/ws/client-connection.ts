@@ -3,7 +3,8 @@
 //
 //   awaitingAuth  The first frame must be a valid `auth` within the auth
 //                 timeout. Anything else gets `error` and the connection
-//                 closes; so does a token that does not verify.
+//                 closes; so does a token that does not verify. A valid one
+//                 gets `welcome`, then `snapshot`.
 //   authenticated Every frame is parsed with the public schemas before it is
 //                 acted on. A bad frame gets `error` `badMessage`; after
 //                 maxViolations of them the connection closes.
@@ -41,6 +42,8 @@ export interface ConnectionDeps {
   readonly sessions: Pick<SessionService, 'verify'>;
   readonly orderEntry: Pick<OrderEntry, 'placeOrder' | 'cancelOrder' | 'cancelAll'>;
   readonly hub: SessionHub<ClientConnection>;
+  // The full `snapshot` message for a trader and candle interval.
+  readonly snapshot: (traderId: number, interval: Interval) => OutgoingMessage;
   readonly limits: ConnectionLimits;
   readonly logger: Logger;
   readonly now: () => number;
@@ -109,6 +112,12 @@ export class ClientConnection implements HubConnection {
     this.#socket.send(JSON.stringify({ ...message, seq: this.#seq }));
   }
 
+  // Sends the connection's whole state; a no-op before auth.
+  sendSnapshot(): void {
+    if (this.#state.kind !== 'authenticated') return;
+    this.send(this.#deps.snapshot(this.#state.traderId, this.#interval));
+  }
+
   close(code: number, reason: string): void {
     if (this.#state.kind === 'closed') return;
     this.#socket.close(code, reason);
@@ -157,6 +166,7 @@ export class ClientConnection implements HubConnection {
       instrument: INSTRUMENT,
       serverTime: this.#deps.now(),
     });
+    this.sendSnapshot();
   }
 
   #dispatch(traderId: number, message: ClientMessage): void {

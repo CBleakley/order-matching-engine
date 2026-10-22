@@ -35,6 +35,11 @@ export class SessionHub<C extends HubConnection = HubConnection> {
     return [...(this.#sessions.get(traderId) ?? [])];
   }
 
+  // Every authenticated connection.
+  authenticated(): readonly C[] {
+    return [...this.#traderOf.keys()];
+  }
+
   add(connection: C): void {
     if (this.#connections.has(connection)) return;
     this.#connections.add(connection);

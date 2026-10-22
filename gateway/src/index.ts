@@ -3,9 +3,9 @@ export { ConfigError, loadConfig, type GatewayConfig, type LogLevel } from './co
 export { backoffDelay, type BackoffOptions } from './engine/backoff.js';
 export * from './engine/engine-client.js';
 export { createLogger, REDACTED_PATHS, type Logger } from './logger.js';
-export { OpenOrderRegistry } from './orders/open-orders.js';
 export * from './orders/order-entry.js';
 export * from './orders/reject-mapping.js';
+export * from './orders/trader-book.js';
 export {
   buildServer,
   type GatewayServer,

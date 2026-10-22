@@ -16,7 +16,7 @@
 //
 // Limits apply per session (trader ID), across all of its connections.
 // Successful cancels get no reply here: the engine's OrderCancelled becomes an
-// orderUpdate (P1-11).
+// orderUpdate from the TraderBook.
 import {
   INSTRUMENT,
   REJECT_REASON_TEXT,
@@ -27,8 +27,8 @@ import {
 
 import type { EngineClient } from '../engine/engine-client.js';
 import type { TokenBucketLimiter } from '../session/token-bucket.js';
-import type { OpenOrderRegistry } from './open-orders.js';
 import { rejectFromEngine, rejectFromError, type MappedReject } from './reject-mapping.js';
+import type { TraderBook } from './trader-book.js';
 
 export type OrderAck = Omit<ServerMessageOf<'orderAck'>, 'seq'>;
 export type OrderReject = Omit<ServerMessageOf<'orderReject'>, 'seq'>;
@@ -42,7 +42,7 @@ export interface OrderEntryLimits {
 
 export interface OrderEntryOptions {
   readonly engine: Pick<EngineClient, 'submit' | 'cancel' | 'status'>;
-  readonly openOrders: Pick<OpenOrderRegistry, 'isRestingFor' | 'ordersOf' | 'countOf'>;
+  readonly openOrders: Pick<TraderBook, 'isRestingFor' | 'ordersOf' | 'countOf'>;
   // The last trade price in ticks, or null if the instrument has never traded.
   readonly lastPrice: () => number | null;
   readonly limits: OrderEntryLimits;
