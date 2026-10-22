@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe('App shell', () => {
-  it('renders the header, main landmark and every placeholder panel', () => {
+  it('renders the header, main landmark and every panel', () => {
     render(<App />);
 
     const header = screen.getByRole('banner');
@@ -35,6 +35,9 @@ describe('App shell', () => {
     ]) {
       expect(within(main).getByRole('region', { name })).toBeInTheDocument();
     }
+    expect(within(main).getByRole('region', { name: 'Your position' })).toBeInTheDocument();
+    expect(within(main).getByText(/^No pending orders\./)).toBeInTheDocument();
+    expect(within(main).getByText(/^No fills yet\./)).toBeInTheDocument();
   });
 
   it('links past the header to the main content', () => {
