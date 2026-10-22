@@ -1,5 +1,6 @@
 // One client WebSocket: the auth handshake, validation of every frame,
-// keepalive and dispatch of order messages to OrderEntry.
+// keepalive, dispatch of order messages to OrderEntry and flow control for
+// market data.
 //
 //   awaitingAuth  The first frame must be a valid `auth` within the auth
 //                 timeout. Anything else gets `error` and the connection
@@ -8,6 +9,20 @@
 //   authenticated Every frame is parsed with the public schemas before it is
 //                 acted on. A bad frame gets `error` `badMessage`; after
 //                 maxViolations of them the connection closes.
+//
+// Private messages (order replies and the trader's own updates) are sent as
+// they happen. Market data arrives from the MarketFeed once per flush:
+//
+//   - While more than maxBufferedBytes are queued on the socket, market data
+//     is dropped. Once the queue drains, the connection gets a fresh
+//     `snapshot` instead of the backlog. If it stays over the limit for
+//     stallTimeoutMs, the socket is terminated: a close frame would only queue
+//     behind the stuck data.
+//   - A pending snapshot (after setInterval, or after the engine reconnects)
+//     goes out on the next flush in place of the deltas. So a client cannot
+//     make the gateway build snapshots faster than once per flush.
+//
+// Dropped messages are never stamped, so `seq` has no gaps.
 //
 // Nothing here logs a frame or a token: frames can contain the token.
 import {
@@ -22,7 +37,8 @@ import type { RawData, WebSocket } from 'ws';
 
 import type { OrderEntry, OrderReply } from '../orders/order-entry.js';
 import type { SessionService } from '../session/session-service.js';
-import type { HubConnection, OutgoingMessage, SessionHub } from './session-hub.js';
+import type { FeedConnection, MarketUpdate } from './market-feed.js';
+import type { OutgoingMessage, SessionHub } from './session-hub.js';
 
 // WebSocket close codes (RFC 6455 section 7.4.1).
 export const CLOSE_NORMAL = 1000;
@@ -36,6 +52,8 @@ export interface ConnectionLimits {
   readonly authTimeoutMs: number;
   readonly pingIntervalMs: number;
   readonly maxViolations: number;
+  readonly maxBufferedBytes: number;
+  readonly stallTimeoutMs: number;
 }
 
 export interface ConnectionDeps {
@@ -54,7 +72,7 @@ type State =
   | { readonly kind: 'authenticated'; readonly traderId: number }
   | { readonly kind: 'closed' };
 
-export class ClientConnection implements HubConnection {
+export class ClientConnection implements FeedConnection {
   readonly ip: string;
   readonly #socket: WebSocket;
   readonly #deps: ConnectionDeps;
@@ -64,6 +82,9 @@ export class ClientConnection implements HubConnection {
   #violations = 0;
   #alive = true;
   #interval: Interval = DEFAULT_INTERVAL;
+  #needsSnapshot = false;
+  // When the socket's queue first went over maxBufferedBytes; undefined while under.
+  #stalledSince: number | undefined;
   readonly #authTimer: NodeJS.Timeout;
   readonly #pingTimer: NodeJS.Timeout;
 
@@ -100,7 +121,7 @@ export class ClientConnection implements HubConnection {
     return this.#state.kind === 'authenticated' ? this.#state.traderId : undefined;
   }
 
-  // The candle interval the client asked for (used by P1-13).
+  // The candle interval the client asked for.
   get interval(): Interval {
     return this.#interval;
   }
@@ -116,6 +137,44 @@ export class ClientConnection implements HubConnection {
   sendSnapshot(): void {
     if (this.#state.kind !== 'authenticated') return;
     this.send(this.#deps.snapshot(this.#state.traderId, this.#interval));
+  }
+
+  // Sends a snapshot on the next flush instead of that flush's market data.
+  requestSnapshot(): void {
+    this.#needsSnapshot = true;
+  }
+
+  flushMarketData(update: MarketUpdate): void {
+    if (this.#state.kind !== 'authenticated') return;
+    const { traderId } = this.#state;
+    const { maxBufferedBytes, stallTimeoutMs } = this.#deps.limits;
+    if (this.#socket.bufferedAmount > maxBufferedBytes) {
+      const now = this.#deps.now();
+      if (this.#stalledSince === undefined) {
+        this.#stalledSince = now;
+        this.#log.info({ bufferedBytes: this.#socket.bufferedAmount }, 'websocket stalled');
+      } else if (now - this.#stalledSince >= stallTimeoutMs) {
+        this.#log.info({ bufferedBytes: this.#socket.bufferedAmount }, 'closing stalled websocket');
+        this.#terminate();
+      }
+      return;
+    }
+    if (this.#stalledSince !== undefined) {
+      this.#stalledSince = undefined;
+      this.#needsSnapshot = true;
+    }
+    if (this.#needsSnapshot) {
+      this.#needsSnapshot = false;
+      this.sendSnapshot();
+      return;
+    }
+    const bars = update.bars.get(this.#interval);
+    if (bars !== undefined && bars.length > 0) {
+      this.send({ type: 'candles', interval: this.#interval, bars: [...bars] });
+    }
+    if (update.stats !== undefined) this.send({ type: 'stats', ...update.stats });
+    const position = update.positionOf(traderId);
+    if (position !== undefined) this.send({ type: 'position', ...position });
   }
 
   close(code: number, reason: string): void {
@@ -187,8 +246,8 @@ export class ClientConnection implements HubConnection {
         this.#deps.orderEntry.cancelAll(traderId, reply);
         return;
       case 'setInterval':
-        // The snapshot for the new interval is sent by P1-13.
         this.#interval = message.interval;
+        this.requestSnapshot();
         return;
       case 'ping':
         this.send({ type: 'pong' });
@@ -219,12 +278,16 @@ export class ClientConnection implements HubConnection {
   #keepalive(): void {
     if (!this.#alive) {
       this.#log.info('closing unresponsive websocket');
-      this.#socket.terminate();
-      this.#onClose();
+      this.#terminate();
       return;
     }
     this.#alive = false;
     this.#socket.ping();
+  }
+
+  #terminate(): void {
+    this.#socket.terminate();
+    this.#onClose();
   }
 
   #onClose(): void {

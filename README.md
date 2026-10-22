@@ -174,6 +174,9 @@ npm start -w @ome/gateway
 | `MAX_OPEN_ORDERS_PER_SESSION`   | `50`        | Limit on resting orders per session (later tickets).            |
 | `MAX_ORDERS_PER_SECOND`         | `10`        | Per-session order rate limit (later tickets).                   |
 | `MAX_WS_MESSAGE_BYTES`          | `4096`      | Largest accepted WebSocket message (later tickets).             |
+| `WS_FLUSH_INTERVAL_MS`          | `100`       | How often coalesced market data is sent to each connection.     |
+| `WS_MAX_BUFFERED_BYTES`         | `1048576`   | A connection with more than this queued gets no market data.    |
+| `WS_STALL_TIMEOUT_MS`           | `5000`      | A connection over that limit for this long is dropped.          |
 
 Invalid configuration stops it at startup with a list of the bad variables (never their values).
 It logs JSON lines to stdout (pino), with secret-bearing fields redacted.
@@ -212,6 +215,28 @@ intervals (the newest 1,000 bars of each, aligned to UTC boundaries) and the dai
 replayed trades, then updated by live trades. An interval with no trades has no bar, so the
 chart shows a gap. A trade stamped earlier than the one before it is folded into the current bar
 and day instead of being dropped, so volume is never lost and bars never move back in time.
+
+`MarketFeed` (`gateway/src/ws/market-feed.ts`) fans market data out to the WebSocket clients.
+Trades are collected as they happen and flushed every `WS_FLUSH_INTERVAL_MS`, so each connection
+gets at most one `candles` (the changed bars of its interval), one `stats` and one `position` P&L
+refresh per flush, however many trades there were. Order replies and the trader's own order
+updates, fills and positions skip the flush and go out at once. A connection with more than
+`WS_MAX_BUFFERED_BYTES` queued (a slow or stalled browser) skips market data; once it drains, it
+gets a fresh `snapshot` instead of the backlog, and after `WS_STALL_TIMEOUT_MS` over the limit it
+is dropped. `setInterval` is answered with a snapshot on the next flush.
+
+`gateway/scripts/load-test.ts` (not run in CI) opens a few hundred connections against a local
+stack and reports message rates, snapshot latency, `seq` gaps and closes. Every connection comes
+from one IP, so raise the gateway's limits for it:
+
+```powershell
+$env:WS_MAX_CONNECTIONS = '1000'
+$env:WS_MAX_CONNECTIONS_PER_IP = '1000'
+$env:SESSION_RATE_LIMIT_PER_MINUTE = '1000'
+npm start -w @ome/gateway
+# in another shell, with engine_service and the gateway running:
+npm run load-test -w @ome/gateway -- --connections 300 --sessions 30 --duration 30
+```
 
 The gateway tests run against an in-process fake engine. `gateway/test/integration/` also
 runs against the real `engine_service` when it has been built (or `ENGINE_SERVICE_BIN` points

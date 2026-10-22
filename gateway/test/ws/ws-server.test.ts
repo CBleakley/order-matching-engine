@@ -120,6 +120,12 @@ async function harness(options: Options = {}): Promise<Harness> {
         authTimeoutMs: 5000,
         pingIntervalMs: 30_000,
         maxViolations: 5,
+        maxBufferedBytes: 1024 * 1024,
+        stallTimeoutMs: 5000,
+        // Market data flushes would interleave with the exact message lists
+        // most tests check, so they only run where a test asks for them
+        // (market-feed.test.ts covers the flush logic itself).
+        flushIntervalMs: 3_600_000,
         ...options.ws,
       },
     },
@@ -852,7 +858,7 @@ describe('/ws private state', () => {
   });
 
   it('sends a fresh snapshot after reconnecting to the same engine', async () => {
-    const h = await harness();
+    const h = await harness({ ws: { flushIntervalMs: 10 } });
     const { client, traderId } = await connect(h);
     await until(() => client.ofType('snapshot').length === 1);
     // An order that rested while the gateway was disconnected.
@@ -883,5 +889,44 @@ describe('/ws private state', () => {
       },
     ]);
     expect(client.closeCode).toBeUndefined();
+  });
+});
+
+describe('/ws market data', () => {
+  it('sends live trades as coalesced candles and stats', async () => {
+    const h = await harness({ ws: { flushIntervalMs: 20 } });
+    const { client } = await connect(h);
+    const ts = BigInt(Date.now()) * 1_000_000n;
+    for (const [price, qty] of [
+      [14_250n, 2n],
+      [14_260n, 3n],
+    ] as const) {
+      h.engine.send({
+        type: 'trade',
+        eventSeq: h.engine.seq(),
+        ts,
+        makerOrderId: 1n,
+        takerOrderId: 2n,
+        buyerTraderId: 1,
+        sellerTraderId: 2,
+        price,
+        qty,
+        aggressorSide: 'buy',
+      });
+    }
+    await until(() => client.ofType('stats').length > 0);
+    // The engine's two frames can straddle a flush; together they make one bar.
+    const bars = client.ofType('candles').flatMap((m) => m.bars);
+    expect(client.ofType('candles').every((m) => m.interval === '15s')).toBe(true);
+    expect(bars.at(-1)).toMatchObject({ open: 14_250, close: 14_260, volume: 5, trades: 2 });
+    expect(client.ofType('stats').at(-1)).toMatchObject({ last: 14_260 });
+  });
+
+  it('answers setInterval with a snapshot for the new interval', async () => {
+    const h = await harness({ ws: { flushIntervalMs: 20 } });
+    const { client } = await connect(h);
+    client.send({ type: 'setInterval', interval: '1m' });
+    await until(() => client.ofType('snapshot').length === 2);
+    expect(client.ofType('snapshot')[1]).toMatchObject({ interval: '1m', seq: 3 });
   });
 });

@@ -7,7 +7,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "load-test": "node scripts/load-test.ts"
   },
   "dependencies": {
     "@fastify/websocket": "^11.3.4",

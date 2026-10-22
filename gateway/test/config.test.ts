@@ -30,6 +30,9 @@ describe('loadConfig', () => {
         authTimeoutMs: 5000,
         pingIntervalMs: 30_000,
         maxViolations: 5,
+        flushIntervalMs: 100,
+        maxBufferedBytes: 1024 * 1024,
+        stallTimeoutMs: 5000,
       },
     });
   });
@@ -57,6 +60,9 @@ describe('loadConfig', () => {
       WS_AUTH_TIMEOUT_MS: '1500',
       WS_PING_INTERVAL_MS: '2500',
       WS_MAX_VIOLATIONS: '3',
+      WS_FLUSH_INTERVAL_MS: '250',
+      WS_MAX_BUFFERED_BYTES: '65536',
+      WS_STALL_TIMEOUT_MS: '2000',
     });
     expect(config).toMatchObject({
       port: 9000,
@@ -81,6 +87,9 @@ describe('loadConfig', () => {
         authTimeoutMs: 1500,
         pingIntervalMs: 2500,
         maxViolations: 3,
+        flushIntervalMs: 250,
+        maxBufferedBytes: 65536,
+        stallTimeoutMs: 2000,
       },
     });
   });

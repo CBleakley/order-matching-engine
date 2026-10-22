@@ -9,10 +9,11 @@
 // When the engine service restarts, its book is gone and every session token
 // is stale, so every client is told `sessionExpired` and disconnected. When
 // the gateway reconnects to the same engine, it may have missed events, so
-// every authenticated client gets a fresh `snapshot`.
+// every authenticated client gets a fresh `snapshot` on the next flush.
 //
 // The TraderBook's changes for a trader go to all of that session's
-// connections as they happen.
+// connections as they happen. Candles, stats and P&L refreshes go through
+// the MarketFeed, coalesced to one flush every limits.flushIntervalMs.
 import type { Interval } from '@ome/shared';
 import websocket from '@fastify/websocket';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -31,6 +32,7 @@ import {
   ClientConnection,
   type ConnectionLimits,
 } from './client-connection.js';
+import { MarketFeed } from './market-feed.js';
 import type { OutgoingMessage, SessionHub } from './session-hub.js';
 
 export const WS_PATH = '/ws';
@@ -43,6 +45,7 @@ export interface WebSocketLimits extends ConnectionLimits {
   readonly maxConnections: number;
   readonly maxConnectionsPerIp: number;
   readonly maxMessageBytes: number;
+  readonly flushIntervalMs: number;
 }
 
 export interface WebSocketOptions {
@@ -51,8 +54,8 @@ export interface WebSocketOptions {
   readonly hub: SessionHub<ClientConnection>;
   // For engineReset and snapshots.
   readonly engine: Pick<EngineClient, 'on' | 'off'>;
-  readonly marketData: Pick<MarketData, 'bars' | 'stats'>;
-  readonly traderBook: Pick<TraderBook, 'view' | 'on' | 'off'>;
+  readonly marketData: Pick<MarketData, 'bars' | 'stats' | 'on' | 'off'>;
+  readonly traderBook: Pick<TraderBook, 'view' | 'position' | 'on' | 'off'>;
   readonly limits: WebSocketLimits;
   readonly now?: () => number;
 }
@@ -75,10 +78,17 @@ export function registerWebSocketRoute(server: GatewayServer, options: WebSocket
   // Registered after the market data and trader book listeners (buildServer
   // runs after they are added), so the state they hold is already rebuilt.
   const onEngineSnapshot = (): void => {
-    for (const connection of hub.authenticated()) connection.sendSnapshot();
+    for (const connection of hub.authenticated()) connection.requestSnapshot();
   };
   traderBook.on('private', onPrivate);
   options.engine.on('snapshot', onEngineSnapshot);
+  const feed = new MarketFeed({
+    hub,
+    marketData,
+    traderBook,
+    flushIntervalMs: limits.flushIntervalMs,
+  });
+  feed.start();
 
   const onEngineReset = (): void => {
     if (hub.size === 0) return;
@@ -94,6 +104,7 @@ export function registerWebSocketRoute(server: GatewayServer, options: WebSocket
     options.engine.off('engineReset', onEngineReset);
     options.engine.off('snapshot', onEngineSnapshot);
     traderBook.off('private', onPrivate);
+    feed.stop();
     done();
   });
 

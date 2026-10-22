@@ -71,6 +71,10 @@ const envSchema = z.object({
   WS_AUTH_TIMEOUT_MS: positiveInt.default(5000),
   WS_PING_INTERVAL_MS: positiveInt.default(30_000),
   WS_MAX_VIOLATIONS: positiveInt.default(5),
+  // Market data fan-out and slow consumers.
+  WS_FLUSH_INTERVAL_MS: positiveInt.default(100),
+  WS_MAX_BUFFERED_BYTES: positiveInt.default(1024 * 1024),
+  WS_STALL_TIMEOUT_MS: positiveInt.default(5000),
 });
 
 export interface GatewayConfig {
@@ -101,6 +105,12 @@ export interface GatewayConfig {
     readonly pingIntervalMs: number;
     // Bad messages tolerated on one connection before it is closed.
     readonly maxViolations: number;
+    // How often coalesced market data is sent.
+    readonly flushIntervalMs: number;
+    // A connection with more than this queued gets no market data.
+    readonly maxBufferedBytes: number;
+    // A connection over maxBufferedBytes for this long is closed.
+    readonly stallTimeoutMs: number;
   };
 }
 
@@ -145,6 +155,9 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): G
       authTimeoutMs: e.WS_AUTH_TIMEOUT_MS,
       pingIntervalMs: e.WS_PING_INTERVAL_MS,
       maxViolations: e.WS_MAX_VIOLATIONS,
+      flushIntervalMs: e.WS_FLUSH_INTERVAL_MS,
+      maxBufferedBytes: e.WS_MAX_BUFFERED_BYTES,
+      stallTimeoutMs: e.WS_STALL_TIMEOUT_MS,
     },
   };
 }

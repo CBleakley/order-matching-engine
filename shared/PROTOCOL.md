@@ -67,8 +67,21 @@ then applies updates in order:
 - `fill`: prepend to the fills list (newest first).
 - `orderAck` / `orderReject`: replies to the client's own `placeOrder` / `cancelOrder`.
 
-The gateway sends a new `snapshot` after `setInterval`, and also when a slow connection catches up
-(instead of the backlog it dropped).
+`orderAck`, `orderReject`, `orderUpdate`, `fill` and the `position` that follows them are sent as
+they happen. Market data (`candles`, `stats` and P&L refreshes) is coalesced and flushed at most
+every 100 ms: one flush sends at most one `candles` (only the bars of the connection's interval
+that changed since the previous flush), one `stats` and one `position`. The flush's `position` is
+a P&L refresh: it is sent when the last price moved and the trader holds a position.
+
+The gateway answers `setInterval` with a new `snapshot` for that interval on the next flush (several
+`setInterval`s in one window get one snapshot, for the last interval). It also sends a new
+`snapshot` after it reconnects to the engine service.
+
+**Slow connections**: while more than 1 MiB is waiting to be sent on a connection, the gateway
+sends it no market data (private messages still go out). Once the backlog drains, it sends a fresh
+`snapshot` instead of the market data it skipped. A connection that stays over the limit for 5
+seconds is dropped without a close frame; the client reconnects as for any other drop. Skipped
+messages are never numbered, so `seq` stays continuous.
 
 ### Sequence numbers and gaps
 
@@ -144,7 +157,7 @@ the first trade of the day, `open`/`high`/`low` equal `last`.
 
 **Position**: `cashTicks` is the cash flow from fills (sells add, buys subtract) and
 `pnlAtLastTicks` = `cashTicks + netQty × last`. A `position` follows every change to the trader's
-fills or open orders.
+fills or open orders, and a flush in which the last price moved while the trader holds a position.
 
 **Fills and restarts**: `fills` holds the trader's 200 most recent fills. The gateway rebuilds every
 trader's fills and position from the trades the engine service retains (24 hours by default), so
