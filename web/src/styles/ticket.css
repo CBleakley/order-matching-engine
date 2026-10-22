@@ -1,0 +1,170 @@
+/* The "Place order" panel ("Trading dashboard" artboard). Inputs use the
+   shared .field classes from session.css. */
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ticket__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ticket__sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  background: var(--color-inset);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.ticket__side {
+  height: var(--touch-min);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text-3);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ticket__side:hover {
+  color: var(--color-text);
+}
+
+.ticket__side--buy[aria-pressed='true'] {
+  background: var(--color-up);
+  color: var(--color-on-accent);
+}
+
+.ticket__side--sell[aria-pressed='true'] {
+  background: var(--color-down);
+  color: var(--color-on-accent);
+}
+
+.ticket__inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ticket__inputs .field {
+  min-width: 0;
+}
+
+.ticket__inputs .field__input {
+  width: 100%;
+  min-width: 0;
+}
+
+.ticket__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ticket__use-last {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.ticket__use-last:disabled {
+  color: var(--color-text-4);
+  cursor: default;
+}
+
+.ticket__estimate {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-well);
+  border: 1px solid #1a1f2b;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  color: var(--color-text-3);
+}
+
+.ticket__estimate-value {
+  color: var(--color-text);
+}
+
+.ticket__submit {
+  height: 48px;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--color-on-accent);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ticket--buy .ticket__submit {
+  background: var(--color-up);
+}
+
+.ticket--sell .ticket__submit {
+  background: var(--color-down);
+}
+
+.ticket__submit:hover {
+  filter: brightness(1.1);
+}
+
+.ticket__submit:disabled,
+.ticket__fields:disabled .ticket__submit {
+  background: var(--color-border-strong);
+  color: var(--color-text-4);
+  cursor: not-allowed;
+  filter: none;
+}
+
+.ticket__fields:disabled .field__input,
+.ticket__fields:disabled .ticket__side {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ticket__notice {
+  font-size: 13px;
+  color: var(--color-notice);
+  padding: 10px 12px;
+  background: var(--color-notice-bg);
+  border: 1px solid var(--color-notice-border);
+  border-radius: 8px;
+}
+
+.ticket__status {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-2);
+  padding: 10px 12px;
+  background: #151a26;
+  border-radius: 8px;
+}
+
+.ticket__status--error {
+  color: var(--color-error);
+  background: #1f1418;
+  border: 1px solid #3a2028;
+}
+
+.ticket__limits {
+  font-size: var(--font-size-small);
+  color: var(--color-text-4);
+}

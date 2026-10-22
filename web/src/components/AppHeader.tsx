@@ -1,21 +1,49 @@
-import { INSTRUMENT } from '@ome/shared';
+import { INSTRUMENT, ticksToDecimalString } from '@ome/shared';
 
+import { formatLocalTime } from '../chart/series-data.js';
+import { formatChange } from '../format/change.js';
+import { NO_VALUE } from '../orders/format.js';
 import { usePalette } from '../settings/palette.js';
 import { type AppState, connectionLabel } from '../state/app-state.js';
 import { useAppState } from '../state/store.js';
+import { useNow } from './use-now.js';
 import { UserBadge } from './UserBadge.js';
 
 const selectConnection = (state: AppState) => state.connection;
-
-// Values arrive with live market data (P1-18); until then each shows a dash.
-const PLACEHOLDER = '—';
-
-const STATS = ['Day open', 'Day high', 'Day low', 'Your open orders'] as const;
+const selectStats = (state: AppState) => state.stats;
+const selectInstrument = (state: AppState) => state.instrument;
+const selectOpenOrderCount = (state: AppState) => state.openOrders.length;
 
 export function AppHeader() {
   const [palette, setPalette] = usePalette();
   const colourBlind = palette === 'blue-orange';
   const connection = useAppState(selectConnection);
+  const stats = useAppState(selectStats);
+  const instrument = useAppState(selectInstrument) ?? INSTRUMENT;
+  const openOrderCount = useAppState(selectOpenOrderCount);
+  const now = useNow(1000);
+
+  const price = (ticks: number | null | undefined) =>
+    ticks === null || ticks === undefined ? NO_VALUE : ticksToDecimalString(ticks, instrument);
+  const change = stats?.change ?? null;
+  const open = stats?.open ?? null;
+  const changeText =
+    change === null || open === null
+      ? NO_VALUE
+      : formatChange(change, open, instrument.priceDecimals);
+  const direction =
+    change === null || change === 0
+      ? ''
+      : change > 0
+        ? ' last-price__change--up'
+        : ' last-price__change--down';
+  const statValues = [
+    ['Day open', price(open)],
+    ['Day high', price(stats?.high)],
+    ['Day low', price(stats?.low)],
+    // Unknown until the snapshot brings the viewer's orders.
+    ['Your open orders', stats === null ? NO_VALUE : String(openOrderCount)],
+  ] as const;
 
   return (
     <header className="app-header">
@@ -48,15 +76,18 @@ export function AppHeader() {
 
       <div className="last-price">
         <span className="visually-hidden">Last price</span>
-        <span className="num last-price__value">{PLACEHOLDER}</span>
-        <span className="num last-price__change">{PLACEHOLDER}</span>
+        <span className="num last-price__value">{price(stats?.last)}</span>
+        <span className={`num last-price__change${direction}`}>
+          <span className="visually-hidden">Daily change </span>
+          {changeText}
+        </span>
       </div>
 
       <dl className="stats">
-        {STATS.map((label) => (
+        {statValues.map(([label, value]) => (
           <div key={label} className="stat">
             <dt className="stat__label">{label}</dt>
-            <dd className="num stat__value">{PLACEHOLDER}</dd>
+            <dd className="num stat__value">{value}</dd>
           </div>
         ))}
       </dl>
@@ -66,6 +97,15 @@ export function AppHeader() {
         <div className={`pill pill--${connection.kind}`} role="status">
           <span className="pill__dot" aria-hidden="true" />
           <span className="pill__label">{connectionLabel(connection)}</span>
+          {/* Hidden from assistive technology: the pill is a live region, and a
+              clock inside it would be announced every second. */}
+          <time
+            className="num pill__time"
+            dateTime={new Date(now).toISOString()}
+            aria-hidden="true"
+          >
+            {formatLocalTime(now)}
+          </time>
         </div>
         <button
           type="button"

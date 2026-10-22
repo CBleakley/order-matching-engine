@@ -1,16 +1,13 @@
 // Display text for the viewer's orders, fills and position, as in the design canvas.
 import { formatMoney, type Side, ticksToDecimalString } from '@ome/shared';
 
+import { signed } from '../format/change.js';
+
 // Shown where a value is not known yet.
 export const NO_VALUE = '—';
 
 export function formatSide(side: Side): string {
   return side === 'buy' ? 'Buy' : 'Sell';
-}
-
-// The design uses a true minus sign for negative values.
-function signed(text: string, negative: boolean): string {
-  return (negative ? '−' : '+') + text;
 }
 
 // How far a limit price is from the last trade, in percent with two decimals:

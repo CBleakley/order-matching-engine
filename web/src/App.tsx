@@ -1,12 +1,12 @@
 import { AppHeader } from './components/AppHeader.js';
+import { OrderTicket } from './components/OrderTicket.js';
 import { Panel } from './components/Panel.js';
 import { PendingOrders } from './components/PendingOrders.js';
 import { PositionCard } from './components/PositionCard.js';
 import { PriceChart } from './components/PriceChart.js';
 import { TradeHistory } from './components/TradeHistory.js';
 
-// The dashboard layout from the design canvas. The remaining placeholder is
-// replaced by the order ticket (P1-18).
+// The dashboard layout from the design canvas.
 export function App() {
   return (
     <div className="page">
@@ -21,7 +21,7 @@ export function App() {
               <PriceChart />
             </Panel>
             <Panel title="Place order" className="panel--ticket">
-              <div className="placeholder">The order ticket appears here.</div>
+              <OrderTicket />
               <PositionCard />
             </Panel>
           </div>

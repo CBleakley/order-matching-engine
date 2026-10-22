@@ -142,19 +142,6 @@ a {
   flex: 1 1 560px;
 }
 
-.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px 20px;
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-control);
-  background: var(--color-well);
-  color: var(--color-text-4);
-  font-size: 13px;
-  text-align: center;
-}
-
 /* Price chart */
 
 .chart {
@@ -402,6 +389,14 @@ a {
   color: var(--color-text-4);
 }
 
+.last-price__change--up {
+  color: var(--color-up);
+}
+
+.last-price__change--down {
+  color: var(--color-down);
+}
+
 .stats {
   display: flex;
   flex-wrap: wrap;
@@ -465,6 +460,11 @@ a {
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--color-text-3);
+}
+
+.pill__time {
+  font-size: 13px;
+  color: var(--color-text-2);
 }
 
 /* Toggle button for the colour-blind palette. */

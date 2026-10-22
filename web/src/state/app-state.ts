@@ -13,6 +13,14 @@ import type {
   Stats,
 } from '@ome/shared';
 
+import {
+  loseSubmission,
+  newSubmission,
+  type OrderSubmission,
+  type SubmittedOrder,
+  updateSubmission,
+} from './order-submission.js';
+
 export type ConnectionStatus =
   | { readonly kind: 'idle' }
   | { readonly kind: 'connecting' }
@@ -20,9 +28,10 @@ export type ConnectionStatus =
   | { readonly kind: 'reconnecting'; readonly attempt: number }
   | { readonly kind: 'offline' };
 
-// Replies to the viewer's own order requests, shown briefly by the order
-// ticket. `id` increases with every new piece of feedback, so the UI can tell
-// two identical rejects apart.
+// Replies to the viewer's own order requests. The order ticket follows its own
+// submission through `orderSubmission`; this is for cancel rejects and rate
+// limits (P1-19). `id` increases with every new piece of feedback, so the UI
+// can tell two identical rejects apart.
 export type OrderFeedback =
   | {
       readonly id: number;
@@ -62,6 +71,8 @@ export interface AppState {
   readonly fills: readonly Fill[];
   readonly position: Position | null;
   readonly orderFeedback: OrderFeedback | null;
+  // The order ticket's latest placeOrder; survives `reset` (reported lost if pending).
+  readonly orderSubmission: OrderSubmission | null;
   // The id of the last OrderFeedback; survives `reset` so ids never repeat.
   readonly lastFeedbackId: number;
 }
@@ -82,6 +93,7 @@ export const initialState: AppState = {
   fills: [],
   position: null,
   orderFeedback: null,
+  orderSubmission: null,
   lastFeedbackId: 0,
 };
 
@@ -93,12 +105,14 @@ export type AppAction =
   | { readonly type: 'sessionExpired' }
   // Discards everything learned from the gateway, ahead of a fresh snapshot.
   | { readonly type: 'reset' }
-  | { readonly type: 'dismissOrderFeedback' };
+  | { readonly type: 'dismissOrderFeedback' }
+  // The order ticket sent a placeOrder.
+  | { readonly type: 'orderSubmitted'; readonly order: SubmittedOrder };
 
 export function reduce(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'server':
-      return applyServerMessage(state, action.message);
+      return trackSubmission(applyServerMessage(state, action.message), action.message);
     case 'connecting':
       return { ...state, connection: { kind: 'connecting' }, sessionExpired: false };
     case 'reconnecting':
@@ -114,11 +128,22 @@ export function reduce(state: AppState, action: AppAction): AppState {
         ...initialState,
         connection: state.connection,
         sessionExpired: state.sessionExpired,
+        orderSubmission: loseSubmission(state.orderSubmission),
         lastFeedbackId: state.lastFeedbackId,
       };
     case 'dismissOrderFeedback':
       return state.orderFeedback === null ? state : { ...state, orderFeedback: null };
+    case 'orderSubmitted':
+      return { ...state, orderSubmission: newSubmission(action.order) };
   }
+}
+
+// Follows the ticket's submission through a message `state` has already applied.
+function trackSubmission(state: AppState, message: ServerMessage): AppState {
+  const submission = state.orderSubmission;
+  if (submission === null) return state;
+  const next = updateSubmission(submission, message, state.fills, state.openOrders);
+  return next === submission ? state : { ...state, orderSubmission: next };
 }
 
 export function applyServerMessage(state: AppState, message: ServerMessage): AppState {

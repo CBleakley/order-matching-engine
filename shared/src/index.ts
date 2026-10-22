@@ -60,6 +60,7 @@ export {
   type Side,
   type Stats,
 } from './protocol.js';
+export { parseQuantity, type QuantityParseError, type QuantityParseResult } from './quantity.js';
 export {
   REJECT_REASON_TEXT,
   REJECT_REASONS,

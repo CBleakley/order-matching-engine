@@ -7,6 +7,7 @@ import {
   ticksToDecimalString,
 } from '@ome/shared';
 
+import { formatChange } from '../format/change.js';
 import { formatLocalTime } from './series-data.js';
 
 export interface TooltipContent {
@@ -23,11 +24,6 @@ export interface TooltipContent {
   readonly up: boolean;
 }
 
-// The design uses a true minus sign for negative changes.
-function signed(text: string, negative: boolean): string {
-  return (negative ? '−' : '+') + text;
-}
-
 export function tooltipContent(
   bar: CandleBar,
   interval: Interval,
@@ -35,16 +31,13 @@ export function tooltipContent(
 ): TooltipContent {
   const price = (ticks: number) => ticksToDecimalString(ticks, { priceDecimals: decimals });
   const change = bar.close - bar.open;
-  // Percent with two decimals, rounded half away from zero on integer hundredths.
-  const hundredths = bar.open === 0 ? 0 : Math.round((Math.abs(change) * 10_000) / bar.open);
-  const percent = ticksToDecimalString(hundredths, { priceDecimals: 2 });
   return {
     time: `${formatLocalTime(bar.start)} – ${formatLocalTime(bar.start + INTERVAL_MS[interval])}`,
     open: price(bar.open),
     high: price(bar.high),
     low: price(bar.low),
     close: price(bar.close),
-    change: `${signed(price(Math.abs(change)), change < 0)} (${signed(percent, change < 0)}%)`,
+    change: formatChange(change, bar.open, decimals),
     range: price(bar.high - bar.low),
     trades: formatQty(bar.trades),
     volume: formatQty(bar.volume),
