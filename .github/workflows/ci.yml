@@ -64,3 +64,49 @@ jobs:
       # Lint (ESLint + Prettier), type-check and Vitest for every workspace.
       - name: Check
         run: npm run check
+
+  e2e:
+    name: e2e / playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Build engine_service (Release)
+        run: |
+          cmake --preset release
+          cmake --build --preset release --target engine_service
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Node packages
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx -w @ome/e2e playwright install --with-deps chromium
+
+      # Each test starts its own engine service, gateway and web server.
+      - name: End-to-end tests
+        run: npm run test:e2e
+
+      # Traces, screenshots and process logs of failed tests.
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          retention-days: 14

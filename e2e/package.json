@@ -1,0 +1,14 @@
+{
+  "name": "@ome/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "stack": "node scripts/start-stack.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0"
+  }
+}

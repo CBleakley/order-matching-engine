@@ -8,9 +8,11 @@ package-lock.json
 # Phase 0 files not formatted by Prettier
 engine/
 cli/
-tests/
+/tests/
 bench/
 engine-service/
 *.md
 CMakePresets.json
 .github/
+test-results/
+playwright-report/

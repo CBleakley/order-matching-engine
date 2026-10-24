@@ -11,6 +11,7 @@ COPY protocol/package.json protocol/
 COPY shared/package.json shared/
 COPY gateway/package.json gateway/
 COPY web/package.json web/
+COPY e2e/package.json e2e/
 RUN npm ci --workspace=@ome/shared --workspace=@ome/gateway --include-workspace-root
 
 COPY protocol protocol
@@ -29,6 +30,7 @@ COPY protocol/package.json protocol/
 COPY shared/package.json shared/
 COPY gateway/package.json gateway/
 COPY web/package.json web/
+COPY e2e/package.json e2e/
 RUN npm ci --omit=dev --workspace=@ome/shared --workspace=@ome/gateway \
         --ignore-scripts \
     && npm cache clean --force

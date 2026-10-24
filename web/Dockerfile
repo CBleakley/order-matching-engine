@@ -12,6 +12,7 @@ COPY protocol/package.json protocol/
 COPY shared/package.json shared/
 COPY gateway/package.json gateway/
 COPY web/package.json web/
+COPY e2e/package.json e2e/
 RUN npm ci --workspace=@ome/shared --workspace=@ome/web --include-workspace-root
 
 COPY protocol protocol

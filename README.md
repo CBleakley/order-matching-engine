@@ -25,6 +25,7 @@ Phase 1 adds a web UI on top of the engine. The new directories are:
 | `shared/`         | npm package `@ome/shared`: public WebSocket protocol schemas and price helpers.               |
 | `gateway/`        | npm package `@ome/gateway`: the internet-facing Node gateway.                                 |
 | `web/`            | npm package `@ome/web`: the React front end.                                                  |
+| `e2e/`            | npm package `@ome/e2e`: Playwright end-to-end tests across the whole stack.                   |
 
 The TypeScript packages are npm workspaces sharing one root toolchain: TypeScript in `strict`
 mode (ESM, `tsconfig.base.json`), ESLint with typescript-eslint, Prettier and Vitest.
@@ -349,6 +350,29 @@ cmake --preset release && cmake --build --preset release
 ctest --preset slow
 ```
 
+### End-to-end tests
+
+`e2e/` drives the whole system through a real browser with Playwright. Each test starts its own
+`engine_service --no-sim`, gateway and web server on free ports (`e2e/src/stack.ts`) and stops
+them when it ends, pass or fail. The tests cover joining, two people trading with each other,
+partial fills, cancels, rejects, and restarting the gateway and the engine service under a live
+page. A smoke test runs with the simulator on and checks the chart's history and live candles.
+
+```sh
+cmake --preset release && cmake --build --preset release   # engine_service
+npm run build                                              # gateway and web app
+npx -w @ome/e2e playwright install chromium                # once
+npm run test:e2e
+```
+
+`ENGINE_SERVICE_BIN` overrides the engine binary (by default `build/release`, then
+`build/debug`). On failure, each test's trace, screenshot and process logs are saved under
+`e2e/test-results/`; open a trace with `npx -w @ome/e2e playwright show-trace <trace.zip>`.
+
+To start the same stack by hand and keep it running, use
+`npm run stack -w @ome/e2e` (add `-- --warmup 30m` to turn the simulator on); it prints the
+web app's address.
+
 ### Golden tests
 
 The CLI golden tests run each `tests/golden/<name>.in` script through the CLI and compare the
@@ -363,3 +387,6 @@ started by hand from the Actions tab. It builds and tests the `release` and `deb
 presets on both Ubuntu (GCC, ASan + UBSan) and Windows (MSVC, ASan), using the same
 `cmake --preset` / `ctest --preset` commands as a local build. Tests labelled `slow` are not
 run in CI. A separate `node` job on Ubuntu runs `npm ci` and `npm run check`.
+An `e2e` job on Ubuntu builds `engine_service` (Release) and the Node packages, installs
+Playwright's Chromium and runs `npm run test:e2e`, uploading the test results and HTML report
+if it fails.

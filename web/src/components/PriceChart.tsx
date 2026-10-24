@@ -63,6 +63,9 @@ export function PriceChart() {
   const tip =
     hover !== null && interval !== null ? tooltipContent(hover.bar, interval, decimals) : null;
   const tipOnLeft = hover !== null && hover.x > hover.width / 2;
+  // The canvas has no DOM to inspect, so the end-to-end tests (e2e/) read what
+  // the chart is showing from these attributes.
+  const lastBar = candles.at(-1);
 
   return (
     <div className="chart">
@@ -109,6 +112,9 @@ export function PriceChart() {
           className="chart__canvas"
           role="img"
           aria-label={`${instrument.symbol} candlestick chart`}
+          data-candle-count={candles.length}
+          data-last-start={lastBar?.start}
+          data-last-close={lastBar?.close}
           onMouseLeave={() => {
             setHover(null);
           }}
