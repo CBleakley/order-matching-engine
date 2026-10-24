@@ -1,0 +1,61 @@
+# The whole demo: engine service, gateway and Caddy. Copy .env.example to .env,
+# set SESSION_SECRET, then:
+#   docker compose up --build
+# and open http://localhost:8080.
+
+name: order-matching-engine
+
+services:
+  engine:
+    build:
+      context: .
+      dockerfile: engine-service/Dockerfile
+    command: ['--warmup', '${ENGINE_WARMUP:-6h}', '--log-level', '${ENGINE_LOG_LEVEL:-info}']
+    # No `ports`: the engine is reachable only from the gateway, on the
+    # internal network.
+    networks: [backend]
+    restart: unless-stopped
+    init: true
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env (see .env.example)}
+      ENGINE_HOST: engine
+      ENGINE_PORT: '7001'
+      PORT: '8080'
+      LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-info}
+      # Browsers send this Origin when the page is opened from PUBLIC_ORIGIN.
+      WS_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:-http://localhost:8080,http://127.0.0.1:8080}
+      # Caddy is the only peer, on a private Docker network.
+      TRUST_PROXY: uniquelocal
+    depends_on:
+      engine:
+        condition: service_healthy
+    # Not published either; Caddy proxies /api and /ws to it.
+    networks: [backend, frontend]
+    restart: unless-stopped
+    init: true
+
+  caddy:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    environment:
+      GATEWAY_UPSTREAM: gateway:8080
+    depends_on:
+      gateway:
+        condition: service_healthy
+    # The only published port.
+    ports:
+      - '${HTTP_PORT:-8080}:8080'
+    networks: [frontend]
+    restart: unless-stopped
+
+networks:
+  # No route to the host or the internet: only the engine and gateway join it.
+  backend:
+    internal: true
+  frontend: {}

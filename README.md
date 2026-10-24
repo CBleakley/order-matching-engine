@@ -54,6 +54,64 @@ Individual scripts: `npm run build` (every package to its `dist/`), `npm run lin
 `prettier --check`), `npm run typecheck`, `npm test` and `npm run format` (Prettier, in place).
 Each script builds `@ome/shared` first, since the other packages import its compiled output.
 
+## Running the demo with Docker
+
+The whole stack runs with one command and needs only Docker (Docker Desktop on Windows and
+macOS, or Docker Engine with the Compose plugin on Linux). No local compiler or Node install
+is needed.
+
+```powershell
+Copy-Item .env.example .env       # cp .env.example .env on Linux/macOS
+# edit .env and set SESSION_SECRET to at least 32 random characters, e.g. the output of
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+docker compose up --build
+```
+
+Then open <http://localhost:8080>. The first build takes several minutes (it compiles the
+engine service and bundles the web app); later builds reuse Docker's layer cache. The engine
+service backfills 6 hours of simulated history before it starts listening, so the chart has
+candles as soon as the page loads.
+
+```powershell
+docker compose up --build -d      # run in the background
+docker compose ps                 # state and health of each service
+docker compose logs -f gateway    # follow one service's logs
+docker compose down               # stop and remove the containers
+```
+
+| Service   | Image                       | Published   | Description                                                           |
+|-----------|-----------------------------|-------------|-----------------------------------------------------------------------|
+| `engine`  | `engine-service/Dockerfile` | no          | C++ engine service and simulator. Only on the internal network.       |
+| `gateway` | `gateway/Dockerfile`        | no          | Node gateway. Reached only through Caddy.                             |
+| `caddy`   | `web/Dockerfile`            | `8080`      | Serves the built web app and proxies `/api` and `/ws` to the gateway. |
+
+Each image is a multi-stage build from the repository root (see `.dockerignore`) and runs as
+a non-root user. The engine and gateway share a Docker network marked `internal`, which has no
+route to the host, so the engine port (7001) cannot be reached from outside; the gateway's
+`/healthz` is not proxied either. Caddy (`web/Caddyfile`) is the only service with a published
+port. It sets `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy` and
+`X-Frame-Options`, compresses static files, and caches Vite's hashed `/assets` for a year.
+All three services restart unless stopped and have health checks: the engine's listening
+socket, the gateway's `/healthz` (healthy only while it is connected to the engine), and
+Caddy serving the page. Each service waits for the one before it to be healthy.
+
+`docker compose` reads these variables from `.env` (git-ignored; `.env.example` is the
+template):
+
+| Variable            | Default                                       | Description                                                           |
+|---------------------|-----------------------------------------------|-----------------------------------------------------------------------|
+| `SESSION_SECRET`    | (required)                                    | Signs session tokens. At least 32 characters.                         |
+| `HTTP_PORT`         | `8080`                                        | Host port Caddy publishes.                                            |
+| `PUBLIC_ORIGIN`     | `http://localhost:8080,http://127.0.0.1:8080` | Origins allowed to open the WebSocket. Change it with `HTTP_PORT`.    |
+| `ENGINE_WARMUP`     | `6h`                                          | Simulated history backfilled at boot.                                 |
+| `ENGINE_LOG_LEVEL`  | `info`                                        | Engine service log level.                                             |
+| `GATEWAY_LOG_LEVEL` | `info`                                        | Gateway log level.                                                    |
+
+The other gateway variables (see [Running the gateway](#running-the-gateway)) keep their
+defaults; add them to the `gateway` service's `environment` in `docker-compose.yml` to change
+them. Restarting the engine service clears the book and issues a new `engineInstanceId`, so
+browsers are asked to join again.
+
 ## Building
 
 Requires CMake 3.25+, Ninja, and a C++20 compiler. On Windows, run the commands from a

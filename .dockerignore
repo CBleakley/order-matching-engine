@@ -1,0 +1,14 @@
+# Every image builds from the repository root. Keep local build output,
+# dependencies, docs and secrets out of the build context.
+.git
+.github
+.claude
+.vscode
+build
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/*.md
+.env
+.env.*

@@ -1,0 +1,47 @@
+# Reverse proxy and static file server for the demo.
+#
+# SITE_ADDRESS defaults to :8080: plain HTTP for any host name, with no TLS
+# (local mode). Gateway traffic is proxied to GATEWAY_UPSTREAM.
+
+{
+	admin off
+}
+
+{$SITE_ADDRESS::8080} {
+	header {
+		# Everything the app loads comes from this origin. 'self' covers the
+		# same-origin ws:/wss: connection in current browsers. Styles set from
+		# script (CSSOM, as React and the chart do) are not blocked. The one
+		# hash is the <style> Lightweight Charts adds for its TradingView
+		# attribution logo; if a library upgrade changes it, the browser
+		# console reports the new hash.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'sha256-3pRED1tOXas1FXFoPb9TGCjmYe9XQsmO9OV23khV2nY='; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Only the session endpoint and the WebSocket are public; the gateway's
+	# /healthz stays internal.
+	@gateway path /api/* /ws
+	handle @gateway {
+		reverse_proxy {$GATEWAY_UPSTREAM:gateway:8080}
+	}
+
+	handle {
+		encode zstd gzip
+
+		# Vite puts content-hashed files under /assets; everything else
+		# (index.html) is revalidated so a new build is picked up at once.
+		@hashed path /assets/*
+		@unhashed not path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		header @unhashed Cache-Control "no-cache"
+
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
